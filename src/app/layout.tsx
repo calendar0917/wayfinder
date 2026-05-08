@@ -1,30 +1,46 @@
 import type { Metadata } from "next";
-import { readConfig } from "@/lib/config";
 import "./globals.css";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const config = readConfig();
-  return { title: config.settings.title };
-}
+export const metadata: Metadata = {
+  title: "Homepage",
+  description: "Personal dashboard",
+};
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const config = readConfig();
-
   return (
-    <html lang="en" data-theme={config.settings.theme} suppressHydrationWarning>
+    <html lang="zh" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <script dangerouslySetInnerHTML={{
-          __html: `try{var t=localStorage.getItem("homepage-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}`
-        }} />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var cfg = null;
+                  try { cfg = JSON.parse(localStorage.getItem('homepage-config')); } catch(e) {}
+                  var theme = (cfg && cfg.settings && cfg.settings.theme) || 'auto';
+                  if (theme === 'auto') {
+                    document.documentElement.setAttribute('data-theme',
+                      window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                  } else {
+                    document.documentElement.setAttribute('data-theme', theme);
+                  }
+                } catch(e) {
+                  document.documentElement.setAttribute('data-theme', 'light');
+                }
+              })();
+            `,
+          }}
+        />
       </head>
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

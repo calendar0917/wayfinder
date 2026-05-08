@@ -1,6 +1,17 @@
-export function WidgetCard({ children }: { children: React.ReactNode }) {
+"use client";
+
+import { ReactNode } from "react";
+
+interface WidgetCardProps {
+  children: ReactNode;
+  className?: string;
+}
+
+export default function WidgetCard({ children, className = "" }: WidgetCardProps) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-4 shadow-card min-w-40 relative transition-shadow duration-150 hover:shadow-md">
+    <div
+      className={`bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-4 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-shadow duration-150 min-w-[160px] ${className}`}
+    >
       {children}
     </div>
   );

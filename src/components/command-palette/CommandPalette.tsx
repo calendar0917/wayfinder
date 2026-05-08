@@ -1,171 +1,239 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { Group } from "@/types/config";
-import { buildSearchUrl, getEngineName } from "@/lib/search";
 
 interface CommandPaletteProps {
+  open: boolean;
+  onClose: () => void;
   groups: Group[];
   searchEngine: string;
   customUrl: string;
-  onClose: () => void;
-  onAiMessage: (msg: string) => void;
+  authenticated: boolean;
+  onAiChat: (message: string) => Promise<string>;
 }
 
-interface SearchResult {
-  type: "bookmark" | "search";
-  name: string;
-  url: string;
-  icon?: string;
-  description?: string;
+function flattenBookmarks(groups: Group[], prefix = ""): { name: string; url: string; group: string }[] {
+  const results: { name: string; url: string; group: string }[] = [];
+  for (const g of groups) {
+    for (const b of g.bookmarks ?? []) {
+      results.push({ name: b.name, url: b.url, group: `${prefix}${g.name}` });
+    }
+    if (g.groups) {
+      results.push(...flattenBookmarks(g.groups, `${prefix}${g.name}/`));
+    }
+  }
+  return results;
 }
 
-export function CommandPalette({
+function getSearchUrl(engine: string, customUrl: string, query: string): string {
+  const encoded = encodeURIComponent(query);
+  switch (engine) {
+    case "google": return `https://www.google.com/search?q=${encoded}`;
+    case "bing": return `https://www.bing.com/search?q=${encoded}`;
+    case "duckduckgo": return `https://duckduckgo.com/?q=${encoded}`;
+    case "custom": return customUrl ? `${customUrl}${encoded}` : `https://duckduckgo.com/?q=${encoded}`;
+    default: return `https://duckduckgo.com/?q=${encoded}`;
+  }
+}
+
+export default function CommandPalette({
+  open,
+  onClose,
   groups,
   searchEngine,
   customUrl,
-  onClose,
-  onAiMessage,
+  authenticated,
+  onAiChat,
 }: CommandPaletteProps) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [rawInput, setRawInput] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [aiResponse, setAiResponse] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isAiMode = query.startsWith("/");
-  const searchQuery = isAiMode ? query.slice(1) : query;
+  // "/" prefix = AI mode, everything else = search mode
+  const isAiMode = rawInput.startsWith("/");
+  const query = isAiMode ? rawInput.slice(1) : rawInput;
+
+  const allBookmarks = flattenBookmarks(groups);
+  const filtered = query.trim()
+    ? allBookmarks.filter(
+        (b) =>
+          b.name.toLowerCase().includes(query.toLowerCase()) ||
+          b.url.toLowerCase().includes(query.toLowerCase())
+      )
+    : allBookmarks;
+
+  const isSearch = !isAiMode && query.trim() && filtered.length === 0;
+  const searchItems = isSearch
+    ? [{ name: `Search "${query}"`, url: getSearchUrl(searchEngine, customUrl, query), group: "" }]
+    : filtered;
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setResults([]);
+    if (open) {
+      setRawInput("");
       setSelectedIndex(0);
+      setAiResponse("");
+      setAiLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  const executeSearch = useCallback(
+    (index: number) => {
+      const item = searchItems[index];
+      if (item) {
+        window.open(item.url, "_blank");
+        onClose();
+      }
+    },
+    [searchItems, onClose]
+  );
+
+  const handleAiSubmit = useCallback(async () => {
+    if (!query.trim() || aiLoading) return;
+    if (!authenticated) {
+      setAiResponse("Please login first to use AI. Click Settings or go to /login.");
       return;
     }
-    const q = searchQuery.toLowerCase();
-    const found: SearchResult[] = [];
-    function searchGroup(groups: Group[]) {
-      for (const g of groups) {
-        for (const b of g.bookmarks ?? []) {
-          if (
-            b.name.toLowerCase().includes(q) ||
-            b.url.toLowerCase().includes(q) ||
-            b.description?.toLowerCase().includes(q) ||
-            b.tags?.some((t) => t.toLowerCase().includes(q))
-          ) {
-            found.push({
-              type: "bookmark",
-              name: b.name,
-              url: b.url,
-              icon: b.icon,
-              description: b.description,
-            });
-          }
+    setAiLoading(true);
+    setAiResponse("");
+    try {
+      const result = await onAiChat(query.trim());
+      setAiResponse(result);
+    } catch {
+      setAiResponse("Failed to get AI response.");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [query, aiLoading, onAiChat, authenticated]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e: KeyboardEvent) {
+      if (isAiMode) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          handleAiSubmit();
+        } else if (e.key === "Escape") {
+          onClose();
         }
-        if (g.groups) searchGroup(g.groups);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % searchItems.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + searchItems.length) % searchItems.length);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        executeSearch(selectedIndex);
+      } else if (e.key === "Escape") {
+        onClose();
       }
     }
-    searchGroup(groups);
-    if (!isAiMode) {
-      found.push({
-        type: "search",
-        name: `Search ${getEngineName(searchEngine)} for '${searchQuery}'`,
-        url: buildSearchUrl(searchEngine, searchQuery, customUrl),
-      });
-    }
-    setResults(found);
-    setSelectedIndex(0);
-  }, [searchQuery, groups, searchEngine, customUrl, isAiMode]);
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [open, isAiMode, searchItems.length, selectedIndex, executeSearch, handleAiSubmit, onClose]);
 
-  const handleSubmit = () => {
-    if (isAiMode && searchQuery.trim()) {
-      onAiMessage(searchQuery.trim());
-    } else if (results.length > 0 && selectedIndex < results.length) {
-      window.open(results[selectedIndex].url, "_blank");
-      onClose();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSubmit();
-    } else if (e.key === "Escape") {
-      onClose();
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex((i) => Math.max(i - 1, 0));
-    }
-  };
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex justify-center pt-[12vh] z-[300]" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-surface border border-border rounded-2xl w-[560px] max-md:w-[95vw] shadow-lg overflow-hidden animate-[modalIn_0.2s_cubic-bezier(0.16,1,0.3,1)]">
-        <div className="flex items-center py-3 px-4 border-b border-border gap-2.5">
-          {isAiMode ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" className="shrink-0">
-              <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/>
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth={2} strokeLinecap="round" className="shrink-0">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-          )}
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search bookmarks or type / for AI..."
-            className="w-full bg-transparent outline-none text-[0.9375rem] text-text placeholder:text-text-tertiary"
-          />
-          <kbd className="text-[0.65rem] py-0.5 px-1.5 bg-surface-alt border border-border rounded-md text-text-tertiary font-mono">ESC</kbd>
-        </div>
-
-        <div className="max-h-[40vh] overflow-y-auto">
-          {isAiMode ? (
-            <div className="p-4 text-text-secondary text-[0.85rem] flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-              Press Enter to send to AI assistant
+    <>
+      <div
+        className="fixed inset-0 bg-[rgba(var(--bg-rgb),0.6)] backdrop-blur-[4px)] z-[300] animate-[fadeIn_0.15s_ease]"
+        onClick={onClose}
+      />
+      <div className="fixed inset-0 z-[300] flex items-start justify-center pt-[20vh] p-4">
+        <div
+          className="w-full max-w-lg bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] animate-[modalIn_0.2s_cubic-bezier(0.16,1,0.3,1)] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+          style={{ width: "min(32rem, 95vw)" }}
+        >
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
+            {isAiMode ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93V12h2.75a2.5 2.5 0 0 1 2.5 2.5V18a2 2 0 1 1-2 0v-3.5a.5.5 0 0 0-.5-.5h-7a.5.5 0 0 0-.5.5V18a2 2 0 1 1-2 0v-3.5a2.5 2.5 0 0 1 2.5-2.5h2.75V9.93A4.002 4.002 0 0 1 12 2z" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            )}
+            <input
+              ref={inputRef}
+              value={rawInput}
+              onChange={(e) => {
+                setRawInput(e.target.value);
+                setSelectedIndex(0);
+                setAiResponse("");
+              }}
+              placeholder={authenticated ? "Search or type / for AI..." : "Search bookmarks..."}
+              className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--text)] placeholder:text-[var(--text-tertiary)]"
+            />
+            <div className="flex items-center gap-1">
+              {isAiMode && (
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[0.6rem] font-medium text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)] rounded">AI</span>
+              )}
+              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[0.65rem] font-mono text-[var(--text-tertiary)] bg-[var(--surface-alt)] border border-[var(--border)] rounded">
+                Esc
+              </kbd>
             </div>
-          ) : results.length === 0 && searchQuery.trim() ? (
-            <div className="p-4 text-text-tertiary text-[0.85rem] text-center">No results found</div>
-          ) : (
-            results.map((r, i) => (
-              <a
-                key={i}
-                href={r.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => onClose()}
-                className={`flex items-center gap-2.5 py-2.5 px-4 text-text border-b border-border transition-colors duration-100 ${i === selectedIndex ? "bg-accent-soft" : "hover:bg-surface-hover"}`}
-              >
-                <span className="w-5 h-5 inline-flex items-center justify-center text-[0.6rem] font-bold text-text-secondary shrink-0 rounded border border-border bg-surface-alt">
-                  {r.type === "search" ? "S" : r.icon ? "" : "B"}
-                </span>
-                {r.type === "bookmark" && r.icon && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.icon} alt="" width={16} height={16} className="rounded-sm shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-[0.875rem] font-medium truncate">{r.name}</div>
-                  {r.description && (
-                    <div className="text-[0.75rem] text-text-secondary truncate">{r.description}</div>
-                  )}
+          </div>
+
+          {/* AI mode content */}
+          {isAiMode && (
+            <div className="max-h-64 overflow-y-auto">
+              {!authenticated ? (
+                <div className="px-4 py-3 text-sm text-[var(--text-tertiary)]">
+                  Login required to use AI. Type without / to search bookmarks.
                 </div>
-                {r.type === "search" && (
-                  <span className="text-[0.65rem] py-0.5 px-2 bg-surface-alt border border-border rounded-md text-text-secondary font-medium">Search</span>
-                )}
-              </a>
-            ))
+              ) : aiLoading ? (
+                <div className="px-4 py-3 text-sm text-[var(--text-secondary)]">
+                  <span className="inline-block w-2 h-4 bg-[var(--accent)] animate-pulse mr-1" />
+                  Thinking...
+                </div>
+              ) : aiResponse ? (
+                <div className="px-4 py-3 text-sm text-[var(--text)] whitespace-pre-wrap">
+                  {aiResponse}
+                </div>
+              ) : (
+                <div className="px-4 py-3 text-sm text-[var(--text-tertiary)]">
+                  Ask a question — e.g. "add a bookmark to YouTube"
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Search mode content */}
+          {!isAiMode && searchItems.length > 0 && (
+            <ul className="max-h-64 overflow-y-auto py-1">
+              {searchItems.slice(0, 20).map((item, i) => (
+                <li key={`${item.url}-${i}`}>
+                  <button
+                    onClick={() => executeSearch(i)}
+                    onMouseEnter={() => setSelectedIndex(i)}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2 text-left cursor-pointer transition-colors duration-75 border-none ${
+                      i === selectedIndex
+                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                        : "bg-transparent text-[var(--text)] hover:bg-[var(--surface-hover)]"
+                    }`}
+                  >
+                    <span className="text-sm font-medium truncate">{item.name}</span>
+                    {item.group && (
+                      <span className="text-xs text-[var(--text-tertiary)] ml-auto shrink-0">
+                        {item.group}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,46 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 
 interface BookmarkIconProps {
-  icon?: string;
+  src: string;
+  name: string;
 }
 
-const size = 24;
-
-function GlobeIcon() {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      className="shrink-0 text-text-tertiary"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  );
-}
-
-export function BookmarkIcon({ icon }: BookmarkIconProps) {
-  const [failed, setFailed] = useState(false);
-
-  if (!icon || failed) {
-    return <GlobeIcon />;
+export default function BookmarkIcon({ src, name }: BookmarkIconProps) {
+  if (!src) {
+    return (
+      <div className="w-5 h-5 rounded flex items-center justify-center bg-[var(--accent-soft)] text-[var(--accent)] text-xs font-bold shrink-0">
+        {name.charAt(0).toUpperCase()}
+      </div>
+    );
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={icon}
-      alt=""
-      width={size}
-      height={size}
-      className="rounded shrink-0"
-      onError={() => setFailed(true)}
+    <Image
+      src={src}
+      alt={name}
+      width={20}
+      height={20}
+      className="w-5 h-5 rounded shrink-0"
+      unoptimized
     />
   );
 }

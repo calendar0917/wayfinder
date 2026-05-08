@@ -1,111 +1,103 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { WidgetCard } from "@/components/ui/WidgetCard";
+import WidgetCard from "@/components/ui/WidgetCard";
 
-interface ResourcesWidgetProps {
-  config: Record<string, unknown>;
-}
-
-interface SystemData {
+interface Resources {
   cpu: { percent: number };
   memory: { total: number; used: number; percent: number };
-  uptime: { seconds: number; formatted: string };
+  uptime: { formatted: string };
   cpuTemp: { celsius: number | null };
 }
 
-export function ResourcesWidget({ config }: ResourcesWidgetProps) {
-  const [data, setData] = useState<SystemData | null>(null);
-  const showCpu = config.cpu !== false;
-  const showMemory = config.memory !== false;
-  const showUptime = config.uptime !== false;
-  const showCpuTemp = config.cpuTemp === true;
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+function ProgressBar({ value, threshold = 80 }: { value: number; threshold?: number }) {
+  const level = value >= threshold ? "danger" : value >= threshold * 0.7 ? "warning" : "normal";
+  const color =
+    level === "danger"
+      ? "var(--error)"
+      : level === "warning"
+        ? "var(--warning)"
+        : "var(--accent)";
+  return (
+    <div className="h-1.5 bg-[var(--surface-alt)] rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full transition-all duration-300"
+        style={{ width: `${Math.min(value, 100)}%`, background: color }}
+      />
+    </div>
+  );
+}
+
+export default function ResourcesWidget() {
+  const [resources, setResources] = useState<Resources | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/system");
-        if (res.ok && mounted) {
-          setData(await res.json());
-        }
-      } catch {
-        // ignore
-      }
-    };
-    poll();
-    const interval = setInterval(poll, 3000);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
+    function fetchResources() {
+      fetch("/api/system")
+        .then((r) => r.json())
+        .then(setResources)
+        .catch(() => {});
+    }
+    fetchResources();
+    const id = setInterval(fetchResources, 3000);
+    return () => clearInterval(id);
   }, []);
 
-  if (!data) {
+  if (!resources) {
     return (
       <WidgetCard>
-        <div className="flex flex-col gap-2 animate-pulse">
-          <div className="h-4 bg-surface-alt rounded w-2/3" />
-          <div className="h-1.5 bg-surface-alt rounded-full w-full" />
-          <div className="h-4 bg-surface-alt rounded w-1/2" />
-          <div className="h-1.5 bg-surface-alt rounded-full w-full" />
-        </div>
+        <div className="text-sm text-[var(--text-tertiary)]">Loading resources...</div>
       </WidgetCard>
     );
   }
 
   return (
     <WidgetCard>
-      <div className="flex flex-col gap-3">
-        {showCpu && (
-          <StatRow label="CPU" value={`${data.cpu.percent}%`} percent={data.cpu.percent} />
-        )}
-        {showMemory && (
-          <StatRow
-            label="Memory"
-            value={`${data.memory.percent}%`}
-            percent={data.memory.percent}
-          />
-        )}
-        {showUptime && (
-          <div className="flex justify-between">
-            <span className="text-[0.875rem] text-text-secondary">Uptime</span>
-            <span className="text-[0.875rem] font-medium">{data.uptime.formatted}</span>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">CPU</span>
+            <span className="text-xs font-bold text-[var(--text)]">
+              {resources.cpu.percent}%
+            </span>
+          </div>
+          <ProgressBar value={resources.cpu.percent} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Memory</span>
+            <span className="text-xs font-bold text-[var(--text)]">
+              {resources.memory.percent}%
+            </span>
+          </div>
+          <ProgressBar value={resources.memory.percent} />
+        </div>
+        {resources.cpuTemp.celsius !== null && (
+          <div className="flex flex-col gap-1 col-span-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[var(--text-secondary)]">CPU Temp</span>
+              <span className="text-xs font-bold text-[var(--text)]">
+                {resources.cpuTemp.celsius}°C
+              </span>
+            </div>
+            <ProgressBar value={(resources.cpuTemp.celsius / 100) * 100} threshold={85} />
           </div>
         )}
-        {showCpuTemp && data.cpuTemp.celsius !== null && (
-          <div className="flex justify-between">
-            <span className="text-[0.875rem] text-text-secondary">CPU Temp</span>
-            <span className="text-[0.875rem] font-medium">{data.cpuTemp.celsius}°C</span>
-          </div>
-        )}
+        <div className="flex flex-col gap-1 col-span-1">
+          <span className="text-xs font-medium text-[var(--text-secondary)]">Uptime</span>
+          <span className="text-xs font-bold text-[var(--text)]">
+            {resources.uptime.formatted}
+          </span>
+        </div>
       </div>
     </WidgetCard>
-  );
-}
-
-function StatRow({
-  label,
-  value,
-  percent,
-}: {
-  label: string;
-  value: string;
-  percent: number;
-}) {
-  const barColor = percent > 80 ? "bg-error" : percent > 60 ? "bg-warning" : "bg-accent";
-  return (
-    <div>
-      <div className="flex justify-between mb-1.5">
-        <span className="text-[0.875rem] text-text-secondary">{label}</span>
-        <span className="text-[0.875rem] font-medium">{value}</span>
-      </div>
-      <div className="h-1.5 bg-surface-alt rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-[width] duration-300 ${barColor}`}
-          style={{ width: `${Math.min(percent, 100)}%` }}
-        />
-      </div>
-    </div>
   );
 }

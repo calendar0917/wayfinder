@@ -1,16 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
+export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [noAuthNeeded, setNoAuthNeeded] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    fetch("/api/auth/status")
+      .then((r) => r.json())
+      .then((auth) => {
+        if (!auth.authRequired) {
+          setNoAuthNeeded(true);
+          window.location.href = "/";
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    if (!password) return;
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -19,35 +33,56 @@ export function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
       });
       const data = await res.json();
       if (data.success) {
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          window.location.href = "/";
-        }
+        window.location.href = "/";
       } else {
         setError(data.error || "Login failed");
       }
     } catch {
-      setError("Connection error");
+      setError("Network error");
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  if (noAuthNeeded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
+        <div className="text-sm text-[var(--text-tertiary)]">Redirecting...</div>
+      </div>
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-        autoFocus
-        className="w-full px-3 py-2.5 border border-border rounded-lg bg-surface-alt text-text text-[0.875rem] outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]"
-      />
-      {error && <div className="text-error text-[0.8rem] bg-error-soft rounded-lg py-1.5 px-2.5">{error}</div>}
-      <button type="submit" disabled={loading} className="py-2.5 bg-accent text-white border-0 rounded-lg text-[0.85rem] font-medium cursor-pointer transition-all duration-150 hover:bg-accent-hover hover:-translate-y-px hover:shadow-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
-        {loading ? "Logging in..." : "Login"}
-      </button>
-    </form>
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] p-6">
+      <div
+        className="w-full max-w-sm bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-lg)]"
+        style={{ animation: "modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)" }}
+      >
+        <h1 className="text-lg font-bold text-[var(--text)] mb-1">Login</h1>
+        <p className="text-sm text-[var(--text-secondary)] mb-4">
+          Enter your password to access the dashboard.
+        </p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            autoFocus
+            className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] disabled:opacity-50 placeholder:text-[var(--text-tertiary)]"
+          />
+          {error && (
+            <p className="text-xs text-[var(--error)]">{error}</p>
+          )}
+          <button
+            type="submit"
+            disabled={loading || !password}
+            className="px-4 py-2 bg-[var(--accent)] text-white border-none rounded-[var(--radius-sm)] text-sm font-semibold cursor-pointer transition-all duration-150 shadow-[var(--shadow-sm)] hover:bg-[var(--accent-hover)] hover:shadow-[var(--shadow-accent)] hover:-translate-y-px active:translate-y-0 active:shadow-[var(--shadow-sm)] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

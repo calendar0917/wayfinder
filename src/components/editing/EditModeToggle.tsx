@@ -1,24 +1,21 @@
 "use client";
 
 interface EditModeToggleProps {
-  enabled: boolean;
-  onToggle: (v: boolean) => void;
+  active: boolean;
+  onToggle: () => void;
 }
 
-export function EditModeToggle({ enabled, onToggle }: EditModeToggleProps) {
+export default function EditModeToggle({ active, onToggle }: EditModeToggleProps) {
   return (
     <button
-      onClick={() => onToggle(!enabled)}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-[0.8rem] font-medium cursor-pointer transition-all duration-150 ${
-        enabled
-          ? "bg-accent-soft text-accent border border-accent"
-          : "bg-surface-alt text-text-secondary border border-border hover:bg-surface-hover hover:border-border-hover"
+      onClick={onToggle}
+      className={`px-3 py-1.5 text-xs font-medium border rounded-[var(--radius-sm)] cursor-pointer transition-all duration-150 ${
+        active
+          ? "bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]"
+          : "bg-[var(--surface-alt)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] hover:border-[var(--border-hover)]"
       }`}
     >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-      </svg>
-      {enabled ? "Editing" : "Edit"}
+      {active ? "Editing" : "Edit"}
     </button>
   );
 }
