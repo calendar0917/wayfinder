@@ -32,39 +32,37 @@ export function AISidePanel({
   };
 
   return (
-    <div style={panelStyle}>
-      <div style={headerStyle}>
-        <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+    <div className="fixed right-0 top-0 bottom-0 w-[380px] bg-card border-l border-border flex flex-col z-[100] shadow-card-lg">
+      <div className="flex justify-between items-center py-3 px-4 border-b border-border">
+        <span className="font-semibold text-[0.9rem]">
           AI Assistant
         </span>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="flex gap-2 items-center">
           {messages.length > 0 && (
-            <button onClick={onClear} style={clearBtnStyle} title="New Chat">
+            <button onClick={onClear} className="bg-transparent border border-border rounded text-text-secondary cursor-pointer text-[0.7rem] py-0.5 px-2" title="New Chat">
               Clear
             </button>
           )}
-          <button onClick={onClose} style={closeBtnStyle}>
+          <button onClick={onClose} className="bg-transparent text-text-secondary cursor-pointer text-base font-semibold px-1">
             x
           </button>
         </div>
       </div>
 
-      <div style={messagesStyle}>
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2.5">
         {messages.length === 0 && (
-          <div style={emptyStyle}>
+          <div className="text-text-secondary text-[0.85rem] text-center mt-10">
             Ask me to add bookmarks, change themes, reorganize groups...
           </div>
         )}
         {messages.map((msg, i) => (
           <div
             key={i}
-            style={{
-              ...bubbleStyle,
-              alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-              background:
-                msg.role === "user" ? "var(--accent)" : "var(--bg-secondary)",
-              color: msg.role === "user" ? "white" : "var(--text)",
-            }}
+            className={`py-2 px-3 rounded-lg max-w-[85%] text-[0.85rem] whitespace-pre-wrap break-words leading-[1.5] ${
+              msg.role === "user"
+                ? "self-end bg-accent text-white"
+                : "self-start bg-bg-secondary text-text"
+            }`}
           >
             {msg.content ||
               (loading && msg.role === "assistant" ? "..." : msg.content)}
@@ -73,7 +71,7 @@ export function AISidePanel({
         <div ref={messagesEndRef} />
       </div>
 
-      <div style={inputRowStyle}>
+      <div className="p-3 border-t border-border flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -82,110 +80,12 @@ export function AISidePanel({
           }}
           placeholder={loading ? "Waiting for response..." : "Type a message..."}
           disabled={loading}
-          style={inputStyle}
+          className="flex-1 bg-bg-secondary border border-border rounded-md py-2 px-3 text-[0.85rem] text-text outline-none"
         />
-        <button onClick={handleSend} disabled={loading} style={sendBtnStyle}>
+        <button onClick={handleSend} disabled={loading} className="bg-accent text-white rounded-md py-2 px-4 cursor-pointer text-[0.85rem] font-medium">
           Send
         </button>
       </div>
     </div>
   );
 }
-
-const panelStyle: React.CSSProperties = {
-  position: "fixed",
-  right: 0,
-  top: 0,
-  bottom: 0,
-  width: 380,
-  background: "var(--card)",
-  borderLeft: "1px solid var(--border)",
-  display: "flex",
-  flexDirection: "column",
-  zIndex: 100,
-  boxShadow: "var(--shadow-lg)",
-};
-
-const headerStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "12px 16px",
-  borderBottom: "1px solid var(--border)",
-};
-
-const closeBtnStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  color: "var(--text-secondary)",
-  cursor: "pointer",
-  fontSize: "1rem",
-  fontWeight: 600,
-  padding: "0 4px",
-};
-
-const clearBtnStyle: React.CSSProperties = {
-  background: "none",
-  border: "1px solid var(--border)",
-  borderRadius: 4,
-  color: "var(--text-secondary)",
-  cursor: "pointer",
-  fontSize: "0.7rem",
-  padding: "2px 8px",
-};
-
-const messagesStyle: React.CSSProperties = {
-  flex: 1,
-  overflowY: "auto",
-  padding: 16,
-  display: "flex",
-  flexDirection: "column",
-  gap: 10,
-};
-
-const emptyStyle: React.CSSProperties = {
-  color: "var(--text-secondary)",
-  fontSize: "0.85rem",
-  textAlign: "center",
-  marginTop: 40,
-};
-
-const bubbleStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  borderRadius: 8,
-  maxWidth: "85%",
-  fontSize: "0.85rem",
-  whiteSpace: "pre-wrap",
-  wordBreak: "break-word",
-  lineHeight: 1.5,
-};
-
-const inputRowStyle: React.CSSProperties = {
-  padding: 12,
-  borderTop: "1px solid var(--border)",
-  display: "flex",
-  gap: 8,
-};
-
-const inputStyle: React.CSSProperties = {
-  flex: 1,
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  padding: "8px 12px",
-  fontSize: "0.85rem",
-  color: "var(--text)",
-  outline: "none",
-  opacity: 1,
-};
-
-const sendBtnStyle: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "white",
-  border: "none",
-  borderRadius: 6,
-  padding: "8px 16px",
-  cursor: "pointer",
-  fontSize: "0.85rem",
-  fontWeight: 500,
-};

@@ -20,7 +20,7 @@ export function LogoWidget({ config }: LogoWidgetProps) {
         src={src}
         alt={alt}
         width={width}
-        style={{ display: "block" }}
+        className="block"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = "none";
         }}

@@ -2,7 +2,10 @@ import { z } from "zod";
 
 const bookmarkSchema = z.object({
   name: z.string().min(1),
-  url: z.string().min(1),
+  url: z.string().min(1).refine(
+    (url) => !url.toLowerCase().startsWith("javascript:"),
+    { message: "javascript: URLs are not allowed" }
+  ),
   icon: z.string().optional().default(""),
   description: z.string().optional().default(""),
   shortcut: z.string().optional().default(""),
@@ -43,6 +46,7 @@ const settingsSchema = z.object({
 });
 
 export const configSchema = z.object({
+  version: z.number().default(1),
   settings: settingsSchema,
   widgets: z
     .array(
@@ -55,7 +59,10 @@ export const configSchema = z.object({
   groups: z.array(groupSchema).default([]),
 });
 
+export const CURRENT_CONFIG_VERSION = 1;
+
 export const DEFAULT_CONFIG = {
+  version: 1,
   settings: {
     title: "My Dashboard",
     theme: "auto" as const,

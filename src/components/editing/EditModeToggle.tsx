@@ -9,17 +9,7 @@ export function EditModeToggle({ enabled, onToggle }: EditModeToggleProps) {
   return (
     <button
       onClick={() => onToggle(!enabled)}
-      style={{
-        background: enabled ? "var(--accent)" : "var(--bg-secondary)",
-        color: enabled ? "white" : "var(--text-secondary)",
-        border: `1px solid ${enabled ? "var(--accent)" : "var(--border)"}`,
-        borderRadius: 6,
-        padding: "4px 12px",
-        fontSize: "0.8rem",
-        fontWeight: 500,
-        cursor: "pointer",
-        transition: "all 0.15s",
-      }}
+      className={`rounded-md px-3 py-1 text-[0.8rem] font-medium cursor-pointer transition-all duration-150 ${enabled ? "bg-accent text-white border border-accent" : "bg-bg-secondary text-text-secondary border border-border"}`}
     >
       {enabled ? "Editing" : "Edit"}
     </button>

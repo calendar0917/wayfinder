@@ -1,3 +1,4 @@
+import { readConfig } from "./config";
 import type { AppConfig, Bookmark, Group } from "@/types/config";
 
 interface ToolResult {
@@ -233,7 +234,7 @@ export const toolDefinitions = [
     type: "function" as const,
     function: {
       name: "remove_widget",
-      description: "Remove a widget by type",
+      description: "Remove a widget by type or index",
       parameters: {
         type: "object",
         properties: {
@@ -242,8 +243,11 @@ export const toolDefinitions = [
             enum: ["datetime", "greeting", "weather", "resources", "logo"],
             description: "Widget type to remove",
           },
+          index: {
+            type: "number",
+            description: "Widget index (0-based) for removing by position",
+          },
         },
-        required: ["type"],
       },
     },
   },
@@ -301,6 +305,9 @@ export function executeTool(
 ): ToolResult {
   switch (name) {
     case "add_bookmark": {
+      if (args.url && String(args.url).toLowerCase().startsWith("javascript:")) {
+        return { success: false, result: "javascript: URLs are not allowed", config };
+      }
       const groupName = (args.group as string) || config.groups[0]?.name;
       if (!groupName) {
         return { success: false, result: "No group found", config };
@@ -368,7 +375,7 @@ export function executeTool(
       };
       const applied: string[] = [];
       for (const [argKey, bookmarkKey] of Object.entries(fieldMap)) {
-        if (args[argKey] !== undefined && args[argKey] !== "") {
+        if (args[argKey] !== undefined) {
           (found.bookmark as unknown as Record<string, unknown>)[bookmarkKey] = args[argKey];
           applied.push(`${bookmarkKey}="${args[argKey]}"`);
         }
@@ -632,7 +639,7 @@ export function executeTool(
       return {
         success: true,
         result: "Config reloaded from YAML",
-        config,
+        config: readConfig(),
       };
     }
 

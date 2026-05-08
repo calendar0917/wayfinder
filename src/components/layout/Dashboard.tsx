@@ -9,6 +9,7 @@ import { AISidePanel } from "@/components/ai/AISidePanel";
 import { EditModeToggle } from "@/components/editing/EditModeToggle";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { SettingsDialog } from "@/components/editing/SettingsDialog";
+import { mutate } from "@/lib/mutate";
 
 interface DashboardProps {
   config: SafeConfig;
@@ -110,19 +111,12 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
 
   const handleMutate = useCallback(
     async (operation: string, args: Record<string, unknown>) => {
-      const res = await fetch("/api/config/mutate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operation, arguments: args }),
-      });
-      if (res.status === 401) {
+      const result = await mutate(operation, args, () => {
         setAuthenticated(false);
         setShowLogin(true);
-        return null;
-      }
-      const data = await res.json();
-      if (data.success) refreshConfig();
-      return data;
+      });
+      if (result && result.success) refreshConfig();
+      return result;
     },
     [refreshConfig]
   );
@@ -232,24 +226,16 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "16px 24px",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+    <div className="min-h-screen bg-bg">
+      <header className="flex justify-between items-center py-4 px-6 border-b border-border">
+        <h1 className="text-xl font-semibold">
           {config.settings.title}
         </h1>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="flex gap-2 items-center">
           <button
             onClick={() => setPaletteOpen(true)}
             title="Search (Cmd+K)"
-            style={headerBtnStyle}
+            className="bg-bg-secondary border border-border rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium text-text-secondary transition-all duration-150"
           >
             Search
           </button>
@@ -259,12 +245,11 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
               setAiPanelOpen((v) => !v);
             }}
             title="AI Assistant"
-            style={{
-              ...headerBtnStyle,
-              background: aiPanelOpen ? "var(--accent)" : "var(--bg-secondary)",
-              color: aiPanelOpen ? "white" : "var(--text-secondary)",
-              borderColor: aiPanelOpen ? "var(--accent)" : "var(--border)",
-            }}
+            className={`border rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium transition-all duration-150 ${
+              aiPanelOpen
+                ? 'bg-accent text-white border-accent'
+                : 'bg-bg-secondary text-text-secondary border-border'
+            }`}
           >
             AI
           </button>
@@ -280,25 +265,25 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
             <button
               onClick={() => setSettingsOpen(true)}
               title="Settings"
-              style={headerBtnStyle}
+              className="bg-bg-secondary border border-border rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium text-text-secondary transition-all duration-150"
             >
               Settings
             </button>
           )}
           {authRequired && !authenticated && (
-            <button onClick={() => setShowLogin(true)} style={loginBtnStyle}>
+            <button onClick={() => setShowLogin(true)} className="bg-accent text-white rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium">
               Login
             </button>
           )}
           {authRequired && authenticated && (
-            <button onClick={handleLogout} style={headerBtnStyle}>
+            <button onClick={handleLogout} className="bg-bg-secondary border border-border rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium text-text-secondary transition-all duration-150">
               Logout
             </button>
           )}
         </div>
       </header>
 
-      <main style={{ padding: "24px", maxWidth: 1200, margin: "0 auto" }}>
+      <main className="p-6 max-w-screen-xl mx-auto">
         <WidgetRow widgets={config.widgets} editMode={editMode} onConfigChange={refreshConfig} />
         <BookmarkGrid
           groups={config.groups}
@@ -353,12 +338,12 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
       )}
 
       {showLogin && (
-        <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false); }}>
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[200]" onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false); }}>
           <form
             onSubmit={(e) => { e.preventDefault(); handleLogin(); }}
-            style={loginFormStyle}
+            className="bg-card border border-border rounded-xl p-6 w-[300px] flex flex-col gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
           >
-            <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 12px", textAlign: "center" }}>
+            <h2 className="text-base font-semibold m-0 mb-3 text-center">
               Login
             </h2>
             <input
@@ -367,16 +352,16 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
               onChange={(e) => setLoginPassword(e.target.value)}
               placeholder="Password"
               autoFocus
-              style={loginInputStyle}
+              className="w-full py-2 px-2.5 bg-bg-secondary border border-border rounded-md text-[0.85rem] text-text outline-none"
             />
             {loginError && (
-              <div style={{ color: "#ef4444", fontSize: "0.8rem", marginBottom: 8 }}>
+              <div className="text-red-500 text-[0.8rem] mb-2">
                 {loginError}
               </div>
             )}
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="submit" style={primaryBtnStyle}>Login</button>
-              <button type="button" onClick={() => { setShowLogin(false); setLoginError(""); }} style={secondaryBtnStyle}>
+            <div className="flex gap-2">
+              <button type="submit" className="bg-accent text-white rounded-md py-1.5 px-3.5 cursor-pointer text-[0.85rem] font-medium flex-1">Login</button>
+              <button type="button" onClick={() => { setShowLogin(false); setLoginError(""); }} className="bg-bg-secondary text-text border border-border rounded-md py-1.5 px-3.5 cursor-pointer text-[0.85rem] flex-1">
                 Cancel
               </button>
             </div>
@@ -386,83 +371,3 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
     </div>
   );
 }
-
-const headerBtnStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  padding: "4px 12px",
-  cursor: "pointer",
-  fontSize: "0.8rem",
-  fontWeight: 500,
-  color: "var(--text-secondary)",
-  transition: "all 0.15s",
-};
-
-const loginBtnStyle: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "white",
-  border: "none",
-  borderRadius: 6,
-  padding: "4px 12px",
-  cursor: "pointer",
-  fontSize: "0.8rem",
-  fontWeight: 500,
-};
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.5)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 200,
-};
-
-const loginFormStyle: React.CSSProperties = {
-  background: "var(--card)",
-  border: "1px solid var(--border)",
-  borderRadius: 12,
-  padding: 24,
-  width: 300,
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-};
-
-const loginInputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  fontSize: "0.85rem",
-  color: "var(--text)",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const primaryBtnStyle: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "white",
-  border: "none",
-  borderRadius: 6,
-  padding: "6px 14px",
-  cursor: "pointer",
-  fontSize: "0.85rem",
-  fontWeight: 500,
-  flex: 1,
-};
-
-const secondaryBtnStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  color: "var(--text)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  padding: "6px 14px",
-  cursor: "pointer",
-  fontSize: "0.85rem",
-  flex: 1,
-};

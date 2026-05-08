@@ -18,14 +18,7 @@ interface WidgetRowProps {
 export function WidgetRow({ widgets, editMode, onConfigChange }: WidgetRowProps) {
   if (widgets.length === 0) return null;
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 16,
-        marginBottom: 24,
-      }}
-    >
+    <div className="flex flex-wrap gap-4 mb-6">
       {widgets.map((w, i) => (
         <WidgetRenderer
           key={`${w.type}-${i}`}
@@ -55,7 +48,7 @@ export function WidgetRenderer({ widget, index, editMode, onConfigChange }: Widg
       case "greeting":
         return <GreetingWidget config={widget.config} />;
       case "weather":
-        return <WeatherWidget config={widget.config} />;
+        return <WeatherWidget config={widget.config} onConfigChange={onConfigChange} />;
       case "resources":
         return <ResourcesWidget config={widget.config} />;
       case "logo":
@@ -70,28 +63,12 @@ export function WidgetRenderer({ widget, index, editMode, onConfigChange }: Widg
   if (!editMode) return widgetEl;
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       {widgetEl}
       <button
         onClick={() => removeWidget(index, onConfigChange)}
         title="Remove widget"
-        style={{
-          position: "absolute",
-          top: -6,
-          right: -6,
-          width: 20,
-          height: 20,
-          borderRadius: "50%",
-          background: "#dc2626",
-          color: "white",
-          border: "none",
-          fontSize: "0.65rem",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          lineHeight: 1,
-        }}
+        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white border-0 text-[0.65rem] cursor-pointer flex items-center justify-center leading-none"
       >
         x
       </button>
@@ -111,15 +88,7 @@ function AddWidgetButton({ onConfigChange }: { onConfigChange: () => void }) {
     return (
       <button
         onClick={() => setExpanded(true)}
-        style={{
-          background: "none",
-          border: "1px dashed var(--border)",
-          borderRadius: 8,
-          padding: "10px 16px",
-          cursor: "pointer",
-          fontSize: "0.875rem",
-          color: "var(--text-secondary)",
-        }}
+        className="bg-transparent border border-dashed border-border rounded-lg px-4 py-2.5 cursor-pointer text-sm text-text-secondary"
       >
         + Add Widget
       </button>
@@ -127,41 +96,19 @@ function AddWidgetButton({ onConfigChange }: { onConfigChange: () => void }) {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        alignItems: "center",
-      }}
-    >
+    <div className="flex gap-2 items-center">
       {(["datetime", "greeting", "weather", "resources", "logo"] as const).map((type) => (
         <button
           key={type}
           onClick={() => { handleAdd(type); setExpanded(false); }}
-          style={{
-            background: "var(--card)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            padding: "6px 12px",
-            cursor: "pointer",
-            fontSize: "0.8rem",
-            color: "var(--text)",
-          }}
+          className="bg-card border border-border rounded-md px-3 py-1.5 cursor-pointer text-[0.8rem] text-text"
         >
           {type}
         </button>
       ))}
       <button
         onClick={() => setExpanded(false)}
-        style={{
-          background: "none",
-          border: "1px solid var(--border)",
-          borderRadius: 6,
-          padding: "6px 10px",
-          cursor: "pointer",
-          fontSize: "0.8rem",
-          color: "var(--text-secondary)",
-        }}
+        className="bg-transparent border border-border rounded-md px-2.5 py-1.5 cursor-pointer text-[0.8rem] text-text-secondary"
       >
         Cancel
       </button>

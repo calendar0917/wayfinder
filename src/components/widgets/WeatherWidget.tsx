@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { WidgetCard } from "@/components/ui/WidgetCard";
+import { weatherCodeToText } from "@/lib/weather";
+import { mutate as mutateApi } from "@/lib/mutate";
 
 interface WeatherWidgetProps {
   config: Record<string, unknown>;
+  onConfigChange?: () => void;
 }
 
 interface WeatherData {
@@ -13,8 +16,9 @@ interface WeatherData {
   description: string;
 }
 
-export function WeatherWidget({ config }: WeatherWidgetProps) {
+export function WeatherWidget({ config, onConfigChange }: WeatherWidgetProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [detecting, setDetecting] = useState(false);
   const lat = config.latitude as number;
   const lon = config.longitude as number;
   const units = (config.units as string) || "metric";
@@ -37,12 +41,41 @@ export function WeatherWidget({ config }: WeatherWidgetProps) {
       .catch(() => {});
   }, [lat, lon, units]);
 
+  const handleDetectLocation = () => {
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const result = await mutateApi("update_widget_config", {
+          type: "weather",
+          config: { latitude: pos.coords.latitude, longitude: pos.coords.longitude, units },
+        });
+        if (!result) {
+          // Fallback: show coordinates for manual config
+          alert(`Detected location: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}\nAdd these to your weather widget config.`);
+        }
+        onConfigChange?.();
+        setDetecting(false);
+      },
+      () => {
+        alert("Could not detect location. Please add latitude and longitude to config.");
+        setDetecting(false);
+      }
+    );
+  };
+
   if (!lat || !lon) {
     return (
       <WidgetCard>
-        <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+        <div className="text-sm text-text-secondary mb-2">
           Weather not configured
         </div>
+        <button
+          onClick={handleDetectLocation}
+          disabled={detecting}
+          className="text-xs text-accent hover:text-accent-hover cursor-pointer disabled:opacity-40"
+        >
+          {detecting ? "Detecting..." : "Use my location"}
+        </button>
       </WidgetCard>
     );
   }
@@ -51,29 +84,17 @@ export function WeatherWidget({ config }: WeatherWidgetProps) {
     <WidgetCard>
       {weather ? (
         <>
-          <div style={{ fontSize: "1.5rem", fontWeight: 600 }}>
+          <div className="text-2xl font-semibold">
             {weather.temperature}°{units === "imperial" ? "F" : "C"}
           </div>
-          <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+          <div className="text-sm text-text-secondary">
             {weather.description} · Wind: {weather.windspeed}{" "}
             {units === "imperial" ? "mph" : "km/h"}
           </div>
         </>
       ) : (
-        <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Loading...</div>
+        <div className="text-sm text-text-secondary">Loading...</div>
       )}
     </WidgetCard>
   );
-}
-
-function weatherCodeToText(code: number): string {
-  const map: Record<number, string> = {
-    0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-    45: "Foggy", 48: "Rime fog", 51: "Light drizzle", 53: "Moderate drizzle",
-    55: "Dense drizzle", 61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
-    71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
-    80: "Rain showers", 81: "Moderate showers", 82: "Violent showers",
-    95: "Thunderstorm", 96: "Thunderstorm + hail", 99: "Heavy hail storm",
-  };
-  return map[code] ?? "Unknown";
 }

@@ -29,10 +29,10 @@ export function ClockWidget({ config }: ClockWidgetProps) {
 
   return (
     <WidgetCard>
-      <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+      <div className="text-sm text-text-secondary">
         {now.toLocaleDateString(locale, dateOpts)}
       </div>
-      <div style={{ fontSize: "1.5rem", fontWeight: 600 }}>
+      <div className="text-2xl font-semibold">
         {now.toLocaleTimeString(locale, timeOpts)}
       </div>
     </WidgetCard>

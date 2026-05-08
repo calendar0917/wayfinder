@@ -1,21 +1,21 @@
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import path from "path";
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
 
 export function gitCommit(message: string): void {
   try {
-    execSync("git rev-parse --git-dir 2>/dev/null", { stdio: "pipe" });
+    execFileSync("git", ["rev-parse", "--git-dir"], { stdio: "pipe" });
   } catch {
     return; // not a git repo — skip commit
   }
   try {
-    const status = execSync(`git -C "${DATA_DIR}" status --porcelain`, {
+    const status = execFileSync("git", ["-C", DATA_DIR, "status", "--porcelain"], {
       encoding: "utf-8",
     });
     if (!status.trim()) return;
-    execSync(`git -C "${DATA_DIR}" add .`, { stdio: "pipe" });
-    execSync(`git -C "${DATA_DIR}" commit -m "${message}"`, {
+    execFileSync("git", ["-C", DATA_DIR, "add", "."], { stdio: "pipe" });
+    execFileSync("git", ["-C", DATA_DIR, "commit", "-m", message], {
       stdio: "pipe",
     });
   } catch {
@@ -29,8 +29,9 @@ export function gitLog(limit = 20): Array<{
   date: string;
 }> {
   try {
-    const output = execSync(
-      `git -C "${DATA_DIR}" log --oneline --max-count=${limit} --format="%H||%s||%aI" 2>/dev/null`,
+    const output = execFileSync(
+      "git",
+      ["-C", DATA_DIR, "log", "--oneline", "--max-count", String(limit), "--format=%H||%s||%aI"],
       { encoding: "utf-8" }
     );
     return output

@@ -27,7 +27,7 @@ export async function getWeather(
   }
 }
 
-function weatherCodeToText(code: number): string {
+export function weatherCodeToText(code: number): string {
   const map: Record<number, string> = {
     0: "Clear sky",
     1: "Mainly clear",
@@ -54,7 +54,7 @@ function weatherCodeToText(code: number): string {
   return map[code] ?? "Unknown";
 }
 
-function weatherCodeToIcon(code: number): string {
+export function weatherCodeToIcon(code: number): string {
   if (code === 0) return "☀️";
   if (code <= 2) return "⛅";
   if (code === 3) return "☁️";

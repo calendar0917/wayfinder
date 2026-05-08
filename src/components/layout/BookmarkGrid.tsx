@@ -32,11 +32,8 @@ export function BookmarkGrid({
   return (
     <>
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
-          gap: 16,
-        }}
+        className="grid gap-4"
+        style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
       >
         {groups.map((group) => (
           <BookmarkGroup
@@ -51,36 +48,14 @@ export function BookmarkGrid({
       {editMode && !showAddGroup && (
         <button
           onClick={() => setShowAddGroup(true)}
-          style={{
-            marginTop: 16,
-            background: "none",
-            border: "1px dashed var(--border)",
-            borderRadius: 8,
-            padding: "10px 16px",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-            color: "var(--text-secondary)",
-            width: "100%",
-            textAlign: "left",
-          }}
+          className="mt-4 bg-transparent border border-dashed border-border rounded-lg px-4 py-2.5 cursor-pointer text-sm text-text-secondary w-full text-left"
         >
           + Add Group
         </button>
       )}
 
       {editMode && showAddGroup && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 12,
-            background: "var(--card)",
-            border: "1px solid var(--accent)",
-            borderRadius: 8,
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-          }}
-        >
+        <div className="mt-4 p-3 bg-card border border-accent rounded-lg flex gap-2 items-center">
           <input
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
@@ -90,44 +65,20 @@ export function BookmarkGrid({
             }}
             placeholder="Group name"
             autoFocus
-            style={{
-              flex: 1,
-              padding: "6px 8px",
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border)",
-              borderRadius: 4,
-              fontSize: "0.85rem",
-              color: "var(--text)",
-              outline: "none",
-            }}
+            className="flex-1 px-2 py-1.5 bg-bg-secondary border border-border rounded text-[0.85rem] text-text outline-none"
           />
           <button
             onClick={handleAddGroup}
             disabled={!newGroupName.trim()}
-            style={{
-              background: "var(--accent)",
-              color: "white",
-              border: "none",
-              borderRadius: 4,
-              padding: "6px 14px",
-              fontSize: "0.85rem",
-              cursor: "pointer",
-              opacity: newGroupName.trim() ? 1 : 0.4,
-            }}
+            className={`bg-accent text-white border-0 rounded px-3.5 py-1.5 text-[0.85rem] cursor-pointer ${
+              newGroupName.trim() ? "opacity-100" : "opacity-40"
+            }`}
           >
             Add
           </button>
           <button
             onClick={() => { setShowAddGroup(false); setNewGroupName(""); }}
-            style={{
-              background: "var(--bg-secondary)",
-              color: "var(--text)",
-              border: "1px solid var(--border)",
-              borderRadius: 4,
-              padding: "6px 14px",
-              fontSize: "0.85rem",
-              cursor: "pointer",
-            }}
+            className="bg-bg-secondary text-text border border-border rounded px-3.5 py-1.5 text-[0.85rem] cursor-pointer"
           >
             Cancel
           </button>

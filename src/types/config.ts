@@ -39,14 +39,17 @@ export interface Group {
 }
 
 export interface AppConfig {
+  version: number;
   settings: Settings;
   widgets: WidgetConfig[];
   groups: Group[];
 }
 
+type Masked = "***" | "";
+
 export interface SafeConfig extends Omit<AppConfig, "settings"> {
   settings: Omit<Settings, "passwordHash" | "apiKey"> & {
-    passwordHash: string;
-    apiKey: string;
+    passwordHash: Masked;
+    apiKey: Masked;
   };
 }

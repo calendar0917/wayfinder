@@ -58,9 +58,9 @@ export function BookmarkGroup({
   };
 
   return (
-    <div style={{ gridColumn: "span 1" }}>
+    <div>
       {/* Group header */}
-      <div style={headerStyle}>
+      <div className="flex items-center gap-2 mb-2 select-none">
         {group.icon && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -68,7 +68,7 @@ export function BookmarkGroup({
             alt=""
             width={20}
             height={20}
-            style={{ borderRadius: 4 }}
+            className="rounded"
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         )}
@@ -82,36 +82,36 @@ export function BookmarkGroup({
             }}
             onBlur={handleRename}
             autoFocus
-            style={renameInputStyle}
+            className="text-[0.95rem] font-semibold bg-bg-secondary border border-accent rounded py-px px-1.5 text-text outline-none"
           />
         ) : (
           <h2
             onClick={() => setCollapsed(!collapsed)}
-            style={{ fontSize: "0.95rem", fontWeight: 600, cursor: "pointer" }}
+            className="text-[0.95rem] font-semibold cursor-pointer"
           >
             {group.name}
           </h2>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          style={chevronBtnStyle}
+          className="bg-transparent cursor-pointer text-text-secondary text-[0.7rem] p-0 leading-none"
         >
-          <span style={{ transform: collapsed ? "rotate(-90deg)" : "none", display: "inline-block", transition: "transform 0.15s" }}>
+          <span className="inline-block transition-transform duration-150" style={{ transform: collapsed ? "rotate(-90deg)" : "none" }}>
             v
           </span>
         </button>
         {editMode && !renaming && (
-          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
-            <button onClick={() => setRenaming(true)} title="Rename" style={actionLinkStyle}>
+          <div className="flex gap-1 ml-auto">
+            <button onClick={() => setRenaming(true)} title="Rename" className="bg-transparent cursor-pointer text-[0.7rem] text-accent p-0">
               Rename
             </button>
             {confirmDelete ? (
               <>
-                <button onClick={handleDeleteGroup} style={dangerLinkStyle}>Confirm</button>
-                <button onClick={() => setConfirmDelete(false)} style={actionLinkStyle}>Cancel</button>
+                <button onClick={handleDeleteGroup} className="bg-transparent cursor-pointer text-[0.7rem] text-red-600 p-0">Confirm</button>
+                <button onClick={() => setConfirmDelete(false)} className="bg-transparent cursor-pointer text-[0.7rem] text-accent p-0">Cancel</button>
               </>
             ) : (
-              <button onClick={() => setConfirmDelete(true)} title="Delete group" style={dangerLinkStyle}>
+              <button onClick={() => setConfirmDelete(true)} title="Delete group" className="bg-transparent cursor-pointer text-[0.7rem] text-red-600 p-0">
                 Delete
               </button>
             )}
@@ -121,7 +121,7 @@ export function BookmarkGroup({
 
       {!collapsed && (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="flex flex-col gap-1">
             {group.bookmarks?.map((bookmark, i) => (
               <BookmarkCard
                 key={`${group.name}-${bookmark.name}-${i}`}
@@ -136,31 +136,31 @@ export function BookmarkGroup({
           {editMode && !showAdd && (
             <button
               onClick={() => setShowAdd(true)}
-              style={addBtnStyle}
+              className="mt-1 bg-transparent border border-dashed border-border rounded-lg py-1.5 px-3 cursor-pointer text-[0.8rem] text-text-secondary w-full text-left"
             >
               + Add Bookmark
             </button>
           )}
           {editMode && showAdd && (
-            <div style={addFormStyle}>
-              <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name *" style={inputStyle} />
-              <input value={addUrl} onChange={(e) => setAddUrl(e.target.value)} placeholder="URL *" style={inputStyle} />
-              <input value={addIcon} onChange={(e) => setAddIcon(e.target.value)} placeholder="Icon URL" style={inputStyle} />
-              <input value={addDesc} onChange={(e) => setAddDesc(e.target.value)} placeholder="Description" style={inputStyle} />
-              <div style={{ display: "flex", gap: 6 }}>
+            <div className="mt-1 py-2.5 px-3 bg-card border border-accent rounded-lg flex flex-col gap-1.5">
+              <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name *" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
+              <input value={addUrl} onChange={(e) => setAddUrl(e.target.value)} placeholder="URL *" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
+              <input value={addIcon} onChange={(e) => setAddIcon(e.target.value)} placeholder="Icon URL" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
+              <input value={addDesc} onChange={(e) => setAddDesc(e.target.value)} placeholder="Description" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
+              <div className="flex gap-1.5">
                 <button
                   onClick={handleAddBookmark}
                   disabled={!addName.trim() || !addUrl.trim()}
-                  style={{ ...primaryBtnStyle, opacity: (!addName.trim() || !addUrl.trim()) ? 0.4 : 1 }}
+                  className={`bg-accent text-white rounded px-3 py-1 text-[0.8rem] cursor-pointer ${(!addName.trim() || !addUrl.trim()) ? 'opacity-40' : ''}`}
                 >
                   Add
                 </button>
-                <button onClick={() => setShowAdd(false)} style={secondaryBtnStyle}>Cancel</button>
+                <button onClick={() => setShowAdd(false)} className="bg-bg-secondary text-text border border-border rounded px-3 py-1 text-[0.8rem] cursor-pointer">Cancel</button>
               </div>
             </div>
           )}
           {group.groups?.map((sub) => (
-            <div key={sub.name} style={{ marginLeft: 16, marginTop: 8 }}>
+            <div key={sub.name} className="ml-4 mt-2">
               <BookmarkGroup group={sub} editMode={editMode} onConfigChange={onConfigChange} />
             </div>
           ))}
@@ -169,105 +169,3 @@ export function BookmarkGroup({
     </div>
   );
 }
-
-const headerStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  marginBottom: 8,
-  userSelect: "none",
-};
-
-const renameInputStyle: React.CSSProperties = {
-  fontSize: "0.95rem",
-  fontWeight: 600,
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--accent)",
-  borderRadius: 4,
-  padding: "1px 6px",
-  color: "var(--text)",
-  outline: "none",
-};
-
-const chevronBtnStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  cursor: "pointer",
-  color: "var(--text-secondary)",
-  fontSize: "0.7rem",
-  padding: 0,
-  lineHeight: 1,
-};
-
-const actionLinkStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  cursor: "pointer",
-  fontSize: "0.7rem",
-  color: "var(--accent)",
-  padding: 0,
-};
-
-const dangerLinkStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  cursor: "pointer",
-  fontSize: "0.7rem",
-  color: "#dc2626",
-  padding: 0,
-};
-
-const addBtnStyle: React.CSSProperties = {
-  marginTop: 4,
-  background: "none",
-  border: "1px dashed var(--border)",
-  borderRadius: 8,
-  padding: "6px 12px",
-  cursor: "pointer",
-  fontSize: "0.8rem",
-  color: "var(--text-secondary)",
-  width: "100%",
-  textAlign: "left",
-};
-
-const addFormStyle: React.CSSProperties = {
-  marginTop: 4,
-  padding: "10px 12px",
-  background: "var(--card)",
-  border: "1px solid var(--accent)",
-  borderRadius: 8,
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "6px 8px",
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 4,
-  fontSize: "0.8rem",
-  color: "var(--text)",
-  outline: "none",
-};
-
-const primaryBtnStyle: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "white",
-  border: "none",
-  borderRadius: 4,
-  padding: "4px 12px",
-  fontSize: "0.8rem",
-  cursor: "pointer",
-};
-
-const secondaryBtnStyle: React.CSSProperties = {
-  background: "var(--bg-secondary)",
-  color: "var(--text)",
-  border: "1px solid var(--border)",
-  borderRadius: 4,
-  padding: "4px 12px",
-  fontSize: "0.8rem",
-  cursor: "pointer",
-};

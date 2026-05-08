@@ -24,14 +24,14 @@ async function verifySignedToken(token: string): Promise<boolean> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  if (sig.length !== expectedHex.length) return false;
   const sigBuf = new TextEncoder().encode(sig);
   const expBuf = new TextEncoder().encode(expectedHex);
-  let equal = sigBuf.length === expBuf.length;
+  if (sigBuf.length !== expBuf.length) return false;
+  let diff = 0;
   for (let i = 0; i < sigBuf.length; i++) {
-    equal &&= sigBuf[i] === expBuf[i];
+    diff |= sigBuf[i] ^ expBuf[i];
   }
-  return equal;
+  return diff === 0;
 }
 
 export async function middleware(request: NextRequest) {
@@ -39,8 +39,10 @@ export async function middleware(request: NextRequest) {
 
   // Only protect write/AI endpoints — the dashboard is publicly viewable
   const protectedPaths = ["/api/ai/", "/api/config/mutate", "/api/git"];
-  const needsAuth = protectedPaths.some((p) => pathname.startsWith(p));
-  if (!needsAuth) return NextResponse.next();
+  const isProtectedPath = protectedPaths.some((p) => pathname.startsWith(p));
+  // Also protect /api/config for non-GET methods (PUT)
+  const isConfigWrite = pathname === "/api/config" && request.method !== "GET";
+  if (!isProtectedPath && !isConfigWrite) return NextResponse.next();
 
   const token = request.cookies.get("auth_token")?.value;
   if (token && (await verifySignedToken(token))) return NextResponse.next();

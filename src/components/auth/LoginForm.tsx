@@ -31,52 +31,19 @@ export function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={formStyle}>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
       <input
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Password"
         autoFocus
-        style={inputStyle}
+        className="w-full px-2.5 py-2 border border-border rounded-md bg-bg-secondary text-text text-[0.85rem] outline-none"
       />
-      {error && <div style={errorStyle}>{error}</div>}
-      <button type="submit" style={btnStyle}>
+      {error && <div className="text-red-500 text-[0.8rem]">{error}</div>}
+      <button type="submit" className="p-2 bg-accent text-white border-0 rounded-md text-[0.85rem] cursor-pointer">
         Login
       </button>
     </form>
   );
 }
-
-const formStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  background: "var(--bg-secondary)",
-  color: "var(--text)",
-  fontSize: "0.85rem",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const errorStyle: React.CSSProperties = {
-  color: "#ef4444",
-  fontSize: "0.8rem",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "8px",
-  background: "var(--accent)",
-  color: "white",
-  border: "none",
-  borderRadius: 6,
-  fontSize: "0.85rem",
-  cursor: "pointer",
-};

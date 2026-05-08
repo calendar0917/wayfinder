@@ -8,8 +8,10 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 function getSigningSecret(): string {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
-    console.warn("AUTH_SECRET not set — using insecure default. Set AUTH_SECRET in .env.local for production.");
-    return "insecure-default-change-me";
+    throw new Error(
+      "AUTH_SECRET environment variable is required. " +
+      "Generate one with: openssl rand -hex 32"
+    );
   }
   return secret;
 }

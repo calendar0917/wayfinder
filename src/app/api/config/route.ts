@@ -1,7 +1,41 @@
-import { NextResponse } from "next/server";
-import { readConfigSafe } from "@/lib/config";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { readConfig, readConfigSafe, writeConfig } from "@/lib/config";
+import { configSchema } from "@/lib/config-schema";
+import { isAuthenticated } from "@/lib/auth";
+import { gitCommit } from "@/lib/git";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
   const config = readConfigSafe();
   return NextResponse.json(config);
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+    const config = readConfig();
+    if (!(await isAuthenticated(config.settings.passwordHash))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const body = await request.json();
+    const validated = configSchema.parse(body);
+    writeConfig(validated);
+    gitCommit("manual: full config update");
+    return NextResponse.json(readConfigSafe());
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: e.errors },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Update failed" },
+      { status: 500 }
+    );
+  }
 }

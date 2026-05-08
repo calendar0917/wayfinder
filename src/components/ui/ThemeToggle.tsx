@@ -15,6 +15,7 @@ export function ThemeToggle({ theme, onChange }: ThemeToggleProps) {
     const result = await mutate("change_theme", { theme: next });
     if (result) {
       document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("homepage-theme", next);
       onChange();
     }
   };
@@ -23,16 +24,7 @@ export function ThemeToggle({ theme, onChange }: ThemeToggleProps) {
     <button
       onClick={handleClick}
       title={`Switch to ${next} mode`}
-      style={{
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--border)",
-        borderRadius: 6,
-        padding: "4px 10px",
-        cursor: "pointer",
-        fontSize: "0.8rem",
-        fontWeight: 500,
-        color: "var(--text-secondary)",
-      }}
+      className="bg-bg-secondary border border-border rounded-md py-1 px-2.5 cursor-pointer text-[0.8rem] font-medium text-text-secondary"
     >
       {label}
     </button>

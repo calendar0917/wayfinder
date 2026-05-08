@@ -70,187 +70,81 @@ export function SettingsDialog({
   };
 
   return (
-    <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={dialogStyle}>
-        <div style={headerStyle}>
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: 0 }}>Settings</h2>
-          <button onClick={onClose} style={closeBtnStyle}>x</button>
+    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[200]" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-card border border-border rounded-xl w-[440px] max-h-[80vh] overflow-y-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
+        <div className="flex justify-between items-center py-4 px-5 border-b border-border">
+          <h2 className="text-base font-semibold m-0">Settings</h2>
+          <button onClick={onClose} className="bg-transparent text-text-secondary cursor-pointer text-base font-semibold p-0">x</button>
         </div>
 
-        <div style={sectionStyle}>
-          <h3 style={sectionTitleStyle}>AI Configuration</h3>
-          <label style={labelStyle}>
+        <div className="py-4 px-5 flex flex-col gap-2.5">
+          <h3 className="text-[0.85rem] font-semibold m-0 text-text-secondary uppercase tracking-wider">AI Configuration</h3>
+          <label className="flex flex-col gap-1 text-[0.8rem] font-medium text-text-secondary">
             API Key
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={currentApiKey === "***" ? "Leave empty to keep current" : "Enter API key"}
-              style={inputStyle}
+              className="w-full py-2 px-2.5 bg-bg-secondary border border-border rounded-md text-[0.85rem] text-text outline-none"
             />
           </label>
-          <label style={labelStyle}>
+          <label className="flex flex-col gap-1 text-[0.8rem] font-medium text-text-secondary">
             API Base URL
             <input
               value={apiBase}
               onChange={(e) => setApiBase(e.target.value)}
               placeholder="https://api.openai.com/v1"
-              style={inputStyle}
+              className="w-full py-2 px-2.5 bg-bg-secondary border border-border rounded-md text-[0.85rem] text-text outline-none"
             />
           </label>
-          <label style={labelStyle}>
+          <label className="flex flex-col gap-1 text-[0.8rem] font-medium text-text-secondary">
             Model
             <input
               value={aiModel}
               onChange={(e) => setAiModel(e.target.value)}
               placeholder="gpt-4o"
-              style={inputStyle}
+              className="w-full py-2 px-2.5 bg-bg-secondary border border-border rounded-md text-[0.85rem] text-text outline-none"
             />
           </label>
-          <button onClick={handleSaveAI} disabled={saving} style={primaryBtnStyle}>
+          <button onClick={handleSaveAI} disabled={saving} className="bg-accent text-white rounded-md py-2 px-4 cursor-pointer text-[0.85rem] font-medium mt-1">
             {saving ? "Saving..." : "Save AI Settings"}
           </button>
         </div>
 
-        <div style={sectionStyle}>
-          <h3 style={sectionTitleStyle}>Password Protection</h3>
-          <p style={hintStyle}>
+        <div className="py-4 px-5 flex flex-col gap-2.5">
+          <h3 className="text-[0.85rem] font-semibold m-0 text-text-secondary uppercase tracking-wider">Password Protection</h3>
+          <p className="text-[0.8rem] text-text-secondary m-0 leading-[1.5]">
             Set a password to require login before accessing the dashboard.
           </p>
-          <label style={labelStyle}>
+          <label className="flex flex-col gap-1 text-[0.8rem] font-medium text-text-secondary">
             New Password
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min 4 characters"
-              style={inputStyle}
+              className="w-full py-2 px-2.5 bg-bg-secondary border border-border rounded-md text-[0.85rem] text-text outline-none"
             />
           </label>
-          <label style={labelStyle}>
+          <label className="flex flex-col gap-1 text-[0.8rem] font-medium text-text-secondary">
             Confirm Password
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter password"
-              style={inputStyle}
+              className="w-full py-2 px-2.5 bg-bg-secondary border border-border rounded-md text-[0.85rem] text-text outline-none"
             />
           </label>
-          <button onClick={handleSetPassword} disabled={saving} style={primaryBtnStyle}>
+          <button onClick={handleSetPassword} disabled={saving} className="bg-accent text-white rounded-md py-2 px-4 cursor-pointer text-[0.85rem] font-medium mt-1">
             {saving ? "Saving..." : "Set Password"}
           </button>
         </div>
 
-        {error && <div style={errorStyle}>{error}</div>}
-        {success && <div style={successStyle}>{success}</div>}
+        {error && <div className="py-2 px-5 text-red-500 text-[0.8rem]">{error}</div>}
+        {success && <div className="py-2 px-5 text-green-500 text-[0.8rem]">{success}</div>}
       </div>
     </div>
   );
 }
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.5)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 200,
-};
-
-const dialogStyle: React.CSSProperties = {
-  background: "var(--card)",
-  border: "1px solid var(--border)",
-  borderRadius: 12,
-  width: 440,
-  maxHeight: "80vh",
-  overflowY: "auto",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-};
-
-const headerStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "16px 20px",
-  borderBottom: "1px solid var(--border)",
-};
-
-const closeBtnStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  color: "var(--text-secondary)",
-  cursor: "pointer",
-  fontSize: "1rem",
-  fontWeight: 600,
-  padding: 0,
-};
-
-const sectionStyle: React.CSSProperties = {
-  padding: "16px 20px",
-  display: "flex",
-  flexDirection: "column",
-  gap: 10,
-};
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: "0.85rem",
-  fontWeight: 600,
-  margin: 0,
-  color: "var(--text-secondary)",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.05em",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 4,
-  fontSize: "0.8rem",
-  fontWeight: 500,
-  color: "var(--text-secondary)",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  fontSize: "0.85rem",
-  color: "var(--text)",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const primaryBtnStyle: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "white",
-  border: "none",
-  borderRadius: 6,
-  padding: "8px 16px",
-  cursor: "pointer",
-  fontSize: "0.85rem",
-  fontWeight: 500,
-  marginTop: 4,
-};
-
-const hintStyle: React.CSSProperties = {
-  fontSize: "0.8rem",
-  color: "var(--text-secondary)",
-  margin: 0,
-  lineHeight: 1.5,
-};
-
-const errorStyle: React.CSSProperties = {
-  padding: "8px 20px",
-  color: "#ef4444",
-  fontSize: "0.8rem",
-};
-
-const successStyle: React.CSSProperties = {
-  padding: "8px 20px",
-  color: "#22c55e",
-  fontSize: "0.8rem",
-};

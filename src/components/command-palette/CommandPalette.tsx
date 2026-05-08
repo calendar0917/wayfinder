@@ -87,10 +87,10 @@ export function CommandPalette({
   };
 
   return (
-    <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={containerStyle}>
-        <div style={inputRowStyle}>
-          <span style={inputPrefixStyle}>{isAiMode ? ">" : ">"}</span>
+    <div className="fixed inset-0 bg-black/50 flex justify-center pt-[15vh] z-[1000]" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-card border border-border rounded-xl w-[560px] max-h-3/5 shadow-card-lg overflow-hidden">
+        <div className="flex items-center py-3 px-4 border-b border-border gap-2">
+          <span className="text-text-secondary font-bold text-base font-mono">{isAiMode ? "/" : ">"}</span>
           <input
             ref={inputRef}
             value={query}
@@ -100,13 +100,13 @@ export function CommandPalette({
               if (e.key === "Escape") onClose();
             }}
             placeholder="Search bookmarks or type / for AI..."
-            style={inputStyle}
+            className="w-full bg-transparent outline-none text-base text-text"
           />
         </div>
 
-        <div style={resultsStyle}>
+        <div className="max-h-[40vh] overflow-y-auto">
           {isAiMode ? (
-            <div style={hintStyle}>Press Enter to send to AI assistant</div>
+            <div className="p-4 text-text-secondary text-[0.85rem]">Press Enter to send to AI assistant</div>
           ) : (
             results.map((r, i) => (
               <a
@@ -115,25 +115,23 @@ export function CommandPalette({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => onClose()}
-                style={resultRowStyle}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--card-hover)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                className="flex items-center gap-2.5 py-2.5 px-4 text-text border-b border-border transition-colors duration-100 hover:bg-card-hover"
               >
-                <span style={resultIconStyle}>
+                <span className="w-4 h-4 inline-flex items-center justify-center text-[0.65rem] font-bold text-text-secondary relative shrink-0">
                   {r.type === "search" ? "S" : r.icon ? "" : "B"}
                 </span>
                 {r.type === "bookmark" && r.icon && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.icon} alt="" width={16} height={16} style={{ position: "absolute", borderRadius: 3 }} />
+                  <img src={r.icon} alt="" width={16} height={16} className="absolute rounded-sm" />
                 )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={resultNameStyle}>{r.name}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{r.name}</div>
                   {r.description && (
-                    <div style={resultDescStyle}>{r.description}</div>
+                    <div className="text-xs text-text-secondary">{r.description}</div>
                   )}
                 </div>
                 {r.type === "search" && (
-                  <span style={resultBadgeStyle}>Search</span>
+                  <span className="text-[0.65rem] py-px px-1.5 bg-bg-secondary border border-border rounded-sm text-text-secondary font-medium">Search</span>
                 )}
               </a>
             ))
@@ -143,102 +141,3 @@ export function CommandPalette({
     </div>
   );
 }
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.5)",
-  display: "flex",
-  justifyContent: "center",
-  paddingTop: "15vh",
-  zIndex: 1000,
-};
-
-const containerStyle: React.CSSProperties = {
-  background: "var(--card)",
-  border: "1px solid var(--border)",
-  borderRadius: 12,
-  width: 560,
-  maxHeight: "60vh",
-  boxShadow: "var(--shadow-lg)",
-  overflow: "hidden",
-};
-
-const inputRowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  padding: "12px 16px",
-  borderBottom: "1px solid var(--border)",
-  gap: 8,
-};
-
-const inputPrefixStyle: React.CSSProperties = {
-  color: "var(--text-secondary)",
-  fontWeight: 700,
-  fontSize: "1rem",
-  fontFamily: "monospace",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "transparent",
-  border: "none",
-  outline: "none",
-  fontSize: "1rem",
-  color: "var(--text)",
-};
-
-const resultsStyle: React.CSSProperties = { maxHeight: "40vh", overflowY: "auto" };
-
-const hintStyle: React.CSSProperties = {
-  padding: 16,
-  color: "var(--text-secondary)",
-  fontSize: "0.85rem",
-};
-
-const resultRowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "10px 16px",
-  textDecoration: "none",
-  color: "var(--text)",
-  borderBottom: "1px solid var(--border)",
-  transition: "background 0.1s",
-};
-
-const resultIconStyle: React.CSSProperties = {
-  width: 16,
-  height: 16,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "0.65rem",
-  fontWeight: 700,
-  color: "var(--text-secondary)",
-  position: "relative",
-  flexShrink: 0,
-};
-
-const resultNameStyle: React.CSSProperties = {
-  fontSize: "0.875rem",
-  fontWeight: 500,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-};
-
-const resultDescStyle: React.CSSProperties = {
-  fontSize: "0.75rem",
-  color: "var(--text-secondary)",
-};
-
-const resultBadgeStyle: React.CSSProperties = {
-  fontSize: "0.65rem",
-  padding: "1px 6px",
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 3,
-  color: "var(--text-secondary)",
-  fontWeight: 500,
-};

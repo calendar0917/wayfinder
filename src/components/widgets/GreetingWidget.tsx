@@ -10,7 +10,7 @@ export function GreetingWidget({ config }: GreetingWidgetProps) {
   const text = (config.text as string) || "Welcome!";
   return (
     <WidgetCard>
-      <div style={{ fontSize: "1.25rem", fontWeight: 500 }}>{text}</div>
+      <div className="text-xl font-medium">{text}</div>
     </WidgetCard>
   );
 }

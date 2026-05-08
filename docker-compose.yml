@@ -6,5 +6,6 @@ services:
       - "3000:3000"
     volumes:
       - ./data:/app/data
+    env_file: .env.local
     pid: host
     restart: unless-stopped

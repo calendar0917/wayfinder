@@ -44,14 +44,14 @@ export function ResourcesWidget({ config }: ResourcesWidgetProps) {
   if (!data) {
     return (
       <WidgetCard>
-        <div style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Loading...</div>
+        <div className="text-sm text-text-secondary">Loading...</div>
       </WidgetCard>
     );
   }
 
   return (
     <WidgetCard>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {showCpu && (
           <StatRow label="CPU" value={`${data.cpu.percent}%`} percent={data.cpu.percent} />
         )}
@@ -63,19 +63,19 @@ export function ResourcesWidget({ config }: ResourcesWidgetProps) {
           />
         )}
         {showUptime && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+          <div className="flex justify-between">
+            <span className="text-sm text-text-secondary">
               Uptime
             </span>
-            <span style={{ fontSize: "0.875rem" }}>{data.uptime.formatted}</span>
+            <span className="text-sm">{data.uptime.formatted}</span>
           </div>
         )}
         {showCpuTemp && data.cpuTemp.celsius !== null && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+          <div className="flex justify-between">
+            <span className="text-sm text-text-secondary">
               CPU Temp
             </span>
-            <span style={{ fontSize: "0.875rem" }}>{data.cpuTemp.celsius}°C</span>
+            <span className="text-sm">{data.cpuTemp.celsius}°C</span>
           </div>
         )}
       </div>
@@ -94,35 +94,18 @@ function StatRow({
 }) {
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 4,
-        }}
-      >
-        <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+      <div className="flex justify-between mb-1">
+        <span className="text-sm text-text-secondary">
           {label}
         </span>
-        <span style={{ fontSize: "0.875rem" }}>{value}</span>
+        <span className="text-sm">{value}</span>
       </div>
-      <div
-        style={{
-          height: 4,
-          background: "var(--border)",
-          borderRadius: 2,
-          overflow: "hidden",
-        }}
-      >
+      <div className="h-1 bg-border rounded-sm overflow-hidden">
         <div
-          style={{
-            height: "100%",
-            width: `${Math.min(percent, 100)}%`,
-            background:
-              percent > 80 ? "#ef4444" : percent > 60 ? "#f59e0b" : "var(--accent)",
-            borderRadius: 2,
-            transition: "width 0.3s",
-          }}
+          className={`h-full rounded-sm transition-[width] duration-300 ${
+            percent > 80 ? "bg-red-500" : percent > 60 ? "bg-amber-500" : "bg-accent"
+          }`}
+          style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>
     </div>
