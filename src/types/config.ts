@@ -15,7 +15,7 @@ export interface Settings {
 }
 
 export interface WidgetConfig {
-  type: "datetime" | "greeting" | "weather" | "resources" | "logo";
+  type: "datetime" | "greeting" | "weather" | "resources" | "logo" | "notes" | "search";
   config: Record<string, unknown>;
 }
 

@@ -168,6 +168,22 @@ export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
+      name: "reorder_bookmark",
+      description: "Reorder a bookmark within its group by moving it from one position to another",
+      parameters: {
+        type: "object",
+        properties: {
+          group: { type: "string", description: "Group name" },
+          fromIndex: { type: "number", description: "Current position index (0-based)" },
+          toIndex: { type: "number", description: "New position index (0-based)" },
+        },
+        required: ["group", "fromIndex", "toIndex"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "rename_group",
       description: "Rename a group",
       parameters: {
@@ -221,7 +237,7 @@ export const toolDefinitions = [
         properties: {
           type: {
             type: "string",
-            enum: ["datetime", "greeting", "weather", "resources", "logo"],
+            enum: ["datetime", "greeting", "weather", "resources", "logo", "notes", "search"],
             description: "Widget type",
           },
           config: { type: "object", description: "Widget configuration" },
@@ -240,7 +256,7 @@ export const toolDefinitions = [
         properties: {
           type: {
             type: "string",
-            enum: ["datetime", "greeting", "weather", "resources", "logo"],
+            enum: ["datetime", "greeting", "weather", "resources", "logo", "notes", "search"],
             description: "Widget type to remove",
           },
           index: {
@@ -307,6 +323,26 @@ export function executeTool(
     case "add_bookmark": {
       if (args.url && String(args.url).toLowerCase().startsWith("javascript:")) {
         return { success: false, result: "javascript: URLs are not allowed", config };
+      }
+      // Duplicate URL detection
+      const newUrl = String(args.url).toLowerCase().replace(/\/+$/, "");
+      function findDuplicateUrl(groups: Group[]): string | null {
+        for (const g of groups) {
+          for (const b of g.bookmarks ?? []) {
+            if (b.url.toLowerCase().replace(/\/+$/, "") === newUrl) {
+              return `'${b.name}' in group '${g.name}' already uses this URL`;
+            }
+          }
+          if (g.groups) {
+            const found = findDuplicateUrl(g.groups);
+            if (found) return found;
+          }
+        }
+        return null;
+      }
+      const duplicate = findDuplicateUrl(config.groups);
+      if (duplicate) {
+        return { success: false, result: `Duplicate URL: ${duplicate}`, config };
       }
       const groupName = (args.group as string) || config.groups[0]?.name;
       if (!groupName) {
@@ -510,6 +546,21 @@ export function executeTool(
       };
     }
 
+    case "reorder_bookmark": {
+      const group = findGroup(config.groups, args.group as string);
+      if (!group) {
+        return { success: false, result: `Group '${args.group}' not found`, config };
+      }
+      const from = args.fromIndex as number;
+      const to = args.toIndex as number;
+      if (!group.bookmarks || from < 0 || from >= group.bookmarks.length || to < 0 || to >= group.bookmarks.length) {
+        return { success: false, result: "Invalid index", config };
+      }
+      const [bookmark] = group.bookmarks.splice(from, 1);
+      group.bookmarks.splice(to, 0, bookmark);
+      return { success: true, result: `Bookmark moved from position ${from} to ${to}`, config };
+    }
+
     case "rename_group": {
       const group = findGroup(config.groups, args.oldName as string);
       if (!group) {
@@ -549,7 +600,7 @@ export function executeTool(
 
     case "add_widget": {
       config.widgets.push({
-        type: args.type as "datetime" | "greeting" | "weather" | "resources" | "logo",
+        type: args.type as "datetime" | "greeting" | "weather" | "resources" | "logo" | "notes" | "search",
         config: (args.config as Record<string, unknown>) || {},
       });
       return {

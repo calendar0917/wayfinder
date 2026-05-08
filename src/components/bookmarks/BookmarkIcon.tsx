@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
+import { getLetterAvatar } from "@/lib/favicon";
 
 interface BookmarkIconProps {
   src: string;
@@ -8,11 +10,18 @@ interface BookmarkIconProps {
 }
 
 export default function BookmarkIcon({ src, name }: BookmarkIconProps) {
-  if (!src) {
+  const [errored, setErrored] = useState(false);
+
+  if (!src || errored) {
     return (
-      <div className="w-5 h-5 rounded flex items-center justify-center bg-[var(--accent-soft)] text-[var(--accent)] text-xs font-bold shrink-0">
-        {name.charAt(0).toUpperCase()}
-      </div>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={getLetterAvatar(name)}
+        alt={name}
+        width={20}
+        height={20}
+        className="w-5 h-5 rounded shrink-0"
+      />
     );
   }
 
@@ -24,6 +33,7 @@ export default function BookmarkIcon({ src, name }: BookmarkIconProps) {
       height={20}
       className="w-5 h-5 rounded shrink-0"
       unoptimized
+      onError={() => setErrored(true)}
     />
   );
 }

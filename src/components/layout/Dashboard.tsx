@@ -1,120 +1,42 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import type { SafeConfig } from "@/types/config";
+import { useState, useCallback } from "react";
 import WidgetRow from "@/components/layout/WidgetRow";
 import BookmarkGrid from "@/components/bookmarks/BookmarkGrid";
+import BookmarkEditModal from "@/components/bookmarks/BookmarkEditModal";
 import AISidePanel from "@/components/ai/AISidePanel";
 import CommandPalette from "@/components/command-palette/CommandPalette";
 import EditModeToggle from "@/components/editing/EditModeToggle";
 import SettingsDialog from "@/components/editing/SettingsDialog";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import { useConfig } from "@/hooks/useConfig";
+import { useMutate } from "@/hooks/useMutate";
+import { useKeyboard } from "@/hooks/useKeyboard";
 
 type Theme = "auto" | "light" | "dark";
 
-function resolveTheme(t: Theme): string {
-  if (t === "auto") {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  return t;
-}
-
 export default function Dashboard() {
-  const [config, setConfig] = useState<SafeConfig | null>(null);
-  const [authRequired, setAuthRequired] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
+  const { config, setConfig, authenticated, setAuthenticated, canEdit, fetchConfig, applyTheme } = useConfig();
+
   const [editMode, setEditMode] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bookmarkModalOpen, setBookmarkModalOpen] = useState(false);
+  const [addBookmarkGroup, setAddBookmarkGroup] = useState<string | null>(null);
 
-  const applyTheme = useCallback((t: Theme) => {
-    document.documentElement.setAttribute("data-theme", resolveTheme(t));
-  }, []);
+  const mutate = useMutate({ setConfig, setAuthenticated, applyTheme, fetchConfig });
 
-  const fetchConfig = useCallback(async () => {
-    try {
-      const [cfgRes, authRes] = await Promise.all([
-        fetch("/api/config"),
-        fetch("/api/auth/status"),
-      ]);
-      const cfg = await cfgRes.json();
-      const auth = await authRes.json();
-      setConfig(cfg);
-      setAuthRequired(auth.authRequired);
-      setAuthenticated(auth.authenticated);
-      applyTheme(cfg?.settings?.theme || "auto");
-      try { localStorage.setItem("homepage-config", JSON.stringify(cfg)); } catch {}
-    } catch {
-      // will retry
-    }
-  }, [applyTheme]);
-
-  useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      const inInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
-
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setPaletteOpen((prev) => !prev);
-        return;
-      }
-      if (e.key === "/" && !inInput) {
-        e.preventDefault();
-        setPaletteOpen(true);
-        return;
-      }
-      if (e.key === "j" && (e.metaKey || e.ctrlKey) && authenticated) {
-        e.preventDefault();
-        setAiOpen((prev) => !prev);
-        return;
-      }
-      if (e.key === "Escape") {
-        if (aiOpen) { setAiOpen(false); return; }
-        if (paletteOpen) { setPaletteOpen(false); return; }
-        if (settingsOpen) { setSettingsOpen(false); return; }
-      }
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [aiOpen, paletteOpen, settingsOpen, authenticated]);
-
-  // mutate with 401 handling
-  const mutate = useCallback(
-    async (operation: string, args: Record<string, unknown>) => {
-      const res = await fetch("/api/config/mutate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operation, arguments: args }),
-      });
-      if (res.status === 401) {
-        setAuthenticated(false);
-        return { success: false, result: "Unauthorized — please login." };
-      }
-      const data = await res.json();
-      if (data.config) {
-        setConfig(data.config);
-        applyTheme(data.config.settings?.theme || "auto");
-      } else {
-        fetchConfig();
-      }
-      return data;
-    },
-    [fetchConfig, applyTheme]
+  useKeyboard(
+    { aiOpen, paletteOpen, settingsOpen },
+    { setAiOpen, setPaletteOpen, setSettingsOpen, authenticated },
+    config?.groups
   );
 
   const handleThemeChange = useCallback(
     async (theme: Theme) => {
       applyTheme(theme);
-      if (authenticated) {
-        await mutate("change_theme", { theme });
-      }
+      if (authenticated) await mutate("change_theme", { theme });
     },
     [mutate, applyTheme, authenticated]
   );
@@ -133,17 +55,38 @@ export default function Dashboard() {
     [mutate]
   );
 
-  const handleAddBookmark = useCallback(
-    async (groupName: string) => {
-      const name = prompt("Bookmark name:");
-      const url = prompt("Bookmark URL:");
-      if (!name || !url) return;
-      await mutate("add_bookmark", { name, url, group: groupName });
+  const handleReorderBookmark = useCallback(
+    async (groupName: string, fromIndex: number, toIndex: number) => {
+      await mutate("reorder_bookmark", { group: groupName, fromIndex, toIndex });
     },
     [mutate]
   );
 
-  // settingsSave: always ends up calling mutate or config PUT (both require auth)
+  const handleUndo = useCallback(async () => {
+    try {
+      const res = await fetch("/api/config/undo", { method: "POST" });
+      if (res.status === 401) { setAuthenticated(false); return; }
+      const data = await res.json();
+      if (data.success) {
+        fetchConfig();
+      }
+    } catch { /* ignore */ }
+  }, [fetchConfig, setAuthenticated]);
+
+  const handleAddBookmark = useCallback((groupName: string) => {
+    setAddBookmarkGroup(groupName);
+    setBookmarkModalOpen(true);
+  }, []);
+
+  const handleBookmarkModalSave = useCallback(
+    async (data: { name: string; url: string; icon: string; description: string; tags: string[] }) => {
+      if (!addBookmarkGroup) return;
+      setBookmarkModalOpen(false);
+      await mutate("add_bookmark", { ...data, group: addBookmarkGroup });
+    },
+    [addBookmarkGroup, mutate]
+  );
+
   const handleSettingsSave = useCallback(
     async (mutations: { operation: string; arguments: Record<string, unknown> }[]) => {
       for (const m of mutations) {
@@ -176,32 +119,27 @@ export default function Dashboard() {
           continue;
         }
         const result = await mutate(m.operation, m.arguments);
-        // If password was set, set_password mutate auto-logs-in server-side
         if (m.operation === "set_password" && result.success) {
-          await fetchConfig(); // refresh auth state since cookie was set
+          await fetchConfig();
         }
       }
     },
-    [config, mutate, applyTheme, fetchConfig]
+    [config, mutate, applyTheme, fetchConfig, setConfig, setAuthenticated]
   );
 
   const handleLogout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setAuthenticated(false);
     fetchConfig();
-  }, [fetchConfig]);
+  }, [fetchConfig, setAuthenticated]);
 
-  // AI chat from command palette
   const handleAiChat = useCallback(async (message: string): Promise<string> => {
     const res = await fetch("/api/ai/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: [{ role: "user", content: message }] }),
     });
-    if (res.status === 401) {
-      setAuthenticated(false);
-      return "Please login first.";
-    }
+    if (res.status === 401) { setAuthenticated(false); return "Please login first."; }
     if (!res.ok) {
       try { const err = await res.json(); return err.error || "AI request failed"; } catch { return "AI request failed"; }
     }
@@ -211,7 +149,6 @@ export default function Dashboard() {
     let result = "";
     const decoder = new TextDecoder();
     let buffer = "";
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -227,30 +164,44 @@ export default function Dashboard() {
       }
     }
     return result || "No response.";
-  }, []);
+  }, [setAuthenticated]);
 
   if (!config) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
-        <div className="text-sm text-[var(--text-tertiary)]">Loading...</div>
+      <div className="min-h-screen bg-[var(--bg)]">
+        <header className="sticky top-0 z-10 bg-[var(--bg)] border-b border-[var(--border)]">
+          <div className="max-w-screen-xl mx-auto px-6 h-12 flex items-center gap-3">
+            <div className="w-32 h-5 bg-[var(--surface-hover)] rounded animate-pulse mr-auto" />
+            <div className="w-20 h-7 bg-[var(--surface-hover)] rounded-[var(--radius-sm)] animate-pulse" />
+          </div>
+        </header>
+        <main className="max-w-screen-xl mx-auto px-6 py-6 flex flex-col gap-6">
+          <div className="flex gap-4">
+            <div className="w-40 h-20 bg-[var(--surface-hover)] rounded-[var(--radius-md)] animate-pulse" />
+            <div className="w-56 h-20 bg-[var(--surface-hover)] rounded-[var(--radius-md)] animate-pulse" />
+            <div className="w-32 h-20 bg-[var(--surface-hover)] rounded-[var(--radius-md)] animate-pulse" />
+            <div className="w-40 h-20 bg-[var(--surface-hover)] rounded-[var(--radius-md)] animate-pulse" />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="h-40 bg-[var(--surface-hover)] rounded-[var(--radius-lg)] animate-pulse" />
+            <div className="h-40 bg-[var(--surface-hover)] rounded-[var(--radius-lg)] animate-pulse" />
+            <div className="h-40 bg-[var(--surface-hover)] rounded-[var(--radius-lg)] animate-pulse" />
+          </div>
+        </main>
       </div>
     );
   }
 
   const currentTheme = (config.settings.theme || "auto") as Theme;
-  // canEdit: user has write access (either no password required, or logged in)
-  const canEdit = !authRequired || authenticated;
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-[var(--bg)] border-b border-[var(--border)]">
         <div className="max-w-screen-xl mx-auto px-6 h-12 flex items-center gap-3">
           <h1 className="text-[1.25rem] font-bold tracking-tight text-[var(--text)] mr-auto">
             {config.settings.title}
           </h1>
           <div className="flex items-center gap-2 header-actions">
-            {/* Search — always available */}
             <button
               onClick={() => setPaletteOpen(true)}
               className="bg-[var(--surface-alt)] text-[var(--text-secondary)] border border-[var(--border)] rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text)] hover:border-[var(--border-hover)] flex items-center gap-1.5"
@@ -261,13 +212,19 @@ export default function Dashboard() {
               <span className="btn-label">Search</span>
               <kbd className="hidden sm:inline-flex items-center px-1 py-0.5 text-[0.6rem] font-mono text-[var(--text-tertiary)] bg-[var(--surface)] border border-[var(--border)] rounded ml-1">/</kbd>
             </button>
-            {/* Theme — always available (view-only toggle for non-auth) */}
             <ThemeToggle theme={currentTheme} onChange={handleThemeChange} />
-            {/* Edit mode — only when authenticated */}
+            {canEdit && <EditModeToggle active={editMode} onToggle={() => setEditMode((p) => !p)} />}
             {canEdit && (
-              <EditModeToggle active={editMode} onToggle={() => setEditMode((p) => !p)} />
+              <button
+                onClick={handleUndo}
+                title="Undo last change"
+                className="bg-[var(--surface-alt)] text-[var(--text-secondary)] border border-[var(--border)] rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs cursor-pointer transition-all duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text)] hover:border-[var(--border-hover)]"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+              </button>
             )}
-            {/* AI — only when authenticated */}
             {canEdit && (
               <button
                 onClick={() => setAiOpen((p) => !p)}
@@ -279,7 +236,6 @@ export default function Dashboard() {
                 <span className="btn-label">AI</span>
               </button>
             )}
-            {/* Settings / Login */}
             {canEdit ? (
               <button
                 onClick={() => setSettingsOpen(true)}
@@ -302,7 +258,6 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-screen-xl mx-auto px-6 py-6 flex flex-col gap-6">
         {config.widgets.length > 0 && (
           <WidgetRow widgets={config.widgets} title={config.settings.title} />
@@ -314,33 +269,14 @@ export default function Dashboard() {
           onDeleteBookmark={handleDeleteBookmark}
           onAddBookmark={handleAddBookmark}
           onDeleteGroup={handleDeleteGroup}
+          onReorderBookmark={handleReorderBookmark}
         />
       </main>
 
-      {/* Panels */}
-      <AISidePanel
-        open={aiOpen}
-        onClose={() => setAiOpen(false)}
-        onConfigUpdate={fetchConfig}
-        authenticated={authenticated}
-      />
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        groups={config.groups}
-        searchEngine={config.settings.search.engine}
-        customUrl={config.settings.search.customUrl}
-        authenticated={authenticated}
-        onAiChat={handleAiChat}
-      />
-      <SettingsDialog
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={config.settings}
-        onSave={handleSettingsSave}
-        onLogout={handleLogout}
-        authenticated={authenticated}
-      />
+      <AISidePanel open={aiOpen} onClose={() => setAiOpen(false)} onConfigUpdate={fetchConfig} authenticated={authenticated} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} groups={config.groups} searchEngine={config.settings.search.engine} customUrl={config.settings.search.customUrl} authenticated={authenticated} onAiChat={handleAiChat} />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={config.settings} onSave={handleSettingsSave} onLogout={handleLogout} authenticated={authenticated} />
+      <BookmarkEditModal open={bookmarkModalOpen} onClose={() => setBookmarkModalOpen(false)} onSave={handleBookmarkModalSave} title={`Add Bookmark to ${addBookmarkGroup || ""}`} />
     </div>
   );
 }

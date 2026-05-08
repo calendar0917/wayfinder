@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { Group } from "@/types/config";
 import BookmarkCard from "./BookmarkCard";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 
 interface BookmarkGroupProps {
   group: Group;
@@ -10,6 +11,7 @@ interface BookmarkGroupProps {
   onDeleteBookmark?: (groupName: string, bookmarkName: string) => void;
   onAddBookmark?: (groupName: string) => void;
   onDeleteGroup?: (groupName: string) => void;
+  onReorderBookmark?: (groupName: string, fromIndex: number, toIndex: number) => void;
 }
 
 export default function BookmarkGroup({
@@ -18,12 +20,21 @@ export default function BookmarkGroup({
   onDeleteBookmark,
   onAddBookmark,
   onDeleteGroup,
+  onReorderBookmark,
 }: BookmarkGroupProps) {
   const [collapsed, setCollapsed] = useState(group.collapsed);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed((prev) => !prev);
   }, []);
+
+  const handleDragEnd = useCallback(
+    (result: DropResult) => {
+      if (!result.destination || result.source.index === result.destination.index) return;
+      onReorderBookmark?.(group.name, result.source.index, result.destination.index);
+    },
+    [group.name, onReorderBookmark]
+  );
 
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 stagger-item">
@@ -72,22 +83,46 @@ export default function BookmarkGroup({
         )}
       </div>
       {!collapsed && (
-        <div className="grid gap-2">
-          {group.bookmarks.map((bookmark) => (
-            <BookmarkCard
-              key={bookmark.name}
-              bookmark={bookmark}
-              editMode={editMode}
-              onDelete={
-                onDeleteBookmark
-                  ? (name) => onDeleteBookmark(group.name, name)
-                  : undefined
-              }
-            />
-          ))}
-        </div>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId={group.name} isDropDisabled={!editMode}>
+            {(provided) => (
+              <div ref={provided.innerRef} {...provided.droppableProps} className="grid gap-2">
+                {group.bookmarks.map((bookmark, index) => (
+                  <Draggable
+                    key={`${group.name}-${bookmark.name}-${index}`}
+                    draggableId={`${group.name}-${index}`}
+                    index={index}
+                    isDragDisabled={!editMode}
+                  >
+                    {(dragProvided, snapshot) => (
+                      <div
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        {...dragProvided.dragHandleProps}
+                        style={{
+                          ...dragProvided.draggableProps.style,
+                          opacity: snapshot.isDragging ? 0.8 : 1,
+                        }}
+                      >
+                        <BookmarkCard
+                          bookmark={bookmark}
+                          editMode={editMode}
+                          onDelete={
+                            onDeleteBookmark
+                              ? (name) => onDeleteBookmark(group.name, name)
+                              : undefined
+                          }
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       )}
-      {/* Nested groups */}
       {group.groups?.length > 0 && !collapsed && (
         <div className="mt-3 pl-2 border-l-2 border-[var(--border)] flex flex-col gap-3">
           {group.groups.map((sub) => (
@@ -98,6 +133,7 @@ export default function BookmarkGroup({
               onDeleteBookmark={onDeleteBookmark}
               onAddBookmark={onAddBookmark}
               onDeleteGroup={onDeleteGroup}
+              onReorderBookmark={onReorderBookmark}
             />
           ))}
         </div>

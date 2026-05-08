@@ -32,10 +32,12 @@ export function readConfig(): AppConfig {
     // Overlay secrets from environment variables (env takes precedence)
     const apiKey = process.env.HOMEPAGE_API_KEY || config.settings.apiKey;
     const passwordHash = process.env.HOMEPAGE_PASSWORD_HASH || config.settings.passwordHash;
-    if (apiKey !== config.settings.apiKey || passwordHash !== config.settings.passwordHash) {
-      config.settings.apiKey = apiKey;
-      config.settings.passwordHash = passwordHash;
-    }
+    const apiBase = process.env.HOMEPAGE_API_BASE || config.settings.apiBase;
+    const aiModel = process.env.HOMEPAGE_AI_MODEL || config.settings.aiModel;
+    config.settings.apiKey = apiKey;
+    config.settings.passwordHash = passwordHash;
+    config.settings.apiBase = apiBase;
+    config.settings.aiModel = aiModel;
     return config;
   } catch {
     console.error("Config parse error, falling back to defaults");
@@ -48,9 +50,9 @@ export function readConfig(): AppConfig {
 export function writeConfig(config: AppConfig): void {
   ensureDataDir();
   const validated = configSchema.parse(config);
-  // If secrets come from env vars, don't persist them to YAML
-  if (process.env.HOMEPAGE_API_KEY) validated.settings.apiKey = "";
-  if (process.env.HOMEPAGE_PASSWORD_HASH) validated.settings.passwordHash = "";
+  // Never persist secrets to YAML — they only live in environment variables
+  validated.settings.apiKey = "";
+  validated.settings.passwordHash = "";
   const yamlStr = yaml.dump(validated, {
     indent: 2,
     lineWidth: -1,

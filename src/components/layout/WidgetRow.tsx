@@ -6,6 +6,9 @@ import GreetingWidget from "@/components/widgets/GreetingWidget";
 import WeatherWidget from "@/components/widgets/WeatherWidget";
 import ResourcesWidget from "@/components/widgets/ResourcesWidget";
 import LogoWidget from "@/components/widgets/LogoWidget";
+import NotesWidget from "@/components/widgets/NotesWidget";
+import SearchWidget from "@/components/widgets/SearchWidget";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 
 interface WidgetRowProps {
   widgets: WidgetConfig[];
@@ -18,6 +21,8 @@ const widgetComponents: Record<string, React.ComponentType<any>> = {
   weather: WeatherWidget,
   resources: ResourcesWidget,
   logo: LogoWidget,
+  notes: NotesWidget,
+  search: SearchWidget,
 };
 
 export default function WidgetRow({ widgets, title }: WidgetRowProps) {
@@ -28,13 +33,17 @@ export default function WidgetRow({ widgets, title }: WidgetRowProps) {
       {widgets.map((widget, i) => {
         const Widget = widgetComponents[widget.type];
         if (!Widget) return null;
-        if (widget.type === "greeting") {
-          return <GreetingWidget key={i} title={title} />;
-        }
-        if (widget.type === "datetime") {
-          return <ClockWidget key={i} config={widget.config} />;
-        }
-        return <Widget key={i} />;
+        return (
+          <ErrorBoundary key={i}>
+            {widget.type === "greeting" ? (
+              <GreetingWidget title={title} />
+            ) : widget.type === "datetime" ? (
+              <ClockWidget config={widget.config} />
+            ) : (
+              <Widget />
+            )}
+          </ErrorBoundary>
+        );
       })}
     </div>
   );

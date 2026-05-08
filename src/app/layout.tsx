@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ToastProvider from "@/components/ui/ToastProvider";
 
 export const metadata: Metadata = {
   title: "Homepage",
   description: "Personal dashboard",
+  icons: { icon: "/favicon.svg" },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -35,12 +38,17 @@ export default function RootLayout({
                 } catch(e) {
                   document.documentElement.setAttribute('data-theme', 'light');
                 }
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.register('/sw.js').catch(function(){});
+                }
               })();
             `,
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

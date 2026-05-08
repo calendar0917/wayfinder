@@ -1,4 +1,5 @@
-import fs from "fs";
+import os from "fs";
+import { platform } from "os";
 
 interface CPUStats {
   percent: number;
@@ -34,12 +35,37 @@ const CACHE_TTL = 3000;
 let prevIdle = 0;
 let prevTotal = 0;
 
+// Cross-platform: use os module for memory and uptime
 function readCPU(): CPUStats {
+  const plat = platform();
+  if (plat === "linux") {
+    try {
+      const fs = require("fs");
+      const stat = fs.readFileSync("/proc/stat", "utf-8");
+      const parts = stat.split("\n")[0].split(/\s+/).slice(1).map(Number);
+      const idle = parts[3] + parts[4];
+      const total = parts.reduce((a: number, b: number) => a + b, 0);
+      const diffIdle = idle - prevIdle;
+      const diffTotal = total - prevTotal;
+      prevIdle = idle;
+      prevTotal = total;
+      const percent = diffTotal === 0 ? 0 : (1 - diffIdle / diffTotal) * 100;
+      return { percent: Math.round(percent * 10) / 10 };
+    } catch {
+      return { percent: 0 };
+    }
+  }
+  // macOS / Windows: use os.cpus() for approximate CPU usage
   try {
-    const stat = fs.readFileSync("/proc/stat", "utf-8");
-    const parts = stat.split("\n")[0].split(/\s+/).slice(1).map(Number);
-    const idle = parts[3] + parts[4];
-    const total = parts.reduce((a, b) => a + b, 0);
+    const cpus = require("os").cpus();
+    let idle = 0;
+    let total = 0;
+    for (const cpu of cpus) {
+      for (const type of ["idle", "user", "nice", "sys", "irq"] as const) {
+        total += cpu.times[type];
+      }
+      idle += cpu.times.idle;
+    }
     const diffIdle = idle - prevIdle;
     const diffTotal = total - prevTotal;
     prevIdle = idle;
@@ -53,16 +79,12 @@ function readCPU(): CPUStats {
 
 function readMemory(): MemoryStats {
   try {
-    const meminfo = fs.readFileSync("/proc/meminfo", "utf-8");
-    const get = (key: string) => {
-      const m = meminfo.match(new RegExp(`${key}:\\s+(\\d+)`));
-      return m ? parseInt(m[1], 10) * 1024 : 0;
-    };
-    const total = get("MemTotal");
-    const available = get("MemAvailable");
-    const used = total - available;
+    const osModule = require("os");
+    const total = osModule.totalmem();
+    const free = osModule.freemem();
+    const used = total - free;
     const percent = total === 0 ? 0 : (used / total) * 100;
-    return { total, used, free: available, percent: Math.round(percent * 10) / 10 };
+    return { total, used, free, percent: Math.round(percent * 10) / 10 };
   } catch {
     return { total: 0, used: 0, free: 0, percent: 0 };
   }
@@ -70,8 +92,8 @@ function readMemory(): MemoryStats {
 
 function readUptime(): UptimeStats {
   try {
-    const content = fs.readFileSync("/proc/uptime", "utf-8");
-    const seconds = Math.floor(parseFloat(content.split(" ")[0]));
+    const osModule = require("os");
+    const seconds = Math.floor(osModule.uptime());
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -86,15 +108,18 @@ function readUptime(): UptimeStats {
 }
 
 function readCPUTemp(): CPUTempStats {
-  try {
-    const temp = fs.readFileSync(
-      "/sys/class/thermal/thermal_zone0/temp",
-      "utf-8"
-    );
-    return { celsius: parseInt(temp.trim(), 10) / 1000 };
-  } catch {
-    return { celsius: null };
+  const plat = platform();
+  if (plat === "linux") {
+    try {
+      const fs = require("fs");
+      const temp = fs.readFileSync("/sys/class/thermal/thermal_zone0/temp", "utf-8");
+      return { celsius: parseInt(temp.trim(), 10) / 1000 };
+    } catch {
+      return { celsius: null };
+    }
   }
+  // CPU temp not easily available cross-platform without native deps
+  return { celsius: null };
 }
 
 export function getSystemResources(): SystemResources {

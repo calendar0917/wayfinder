@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Settings } from "@/types/config";
+import { useToast } from "@/components/ui/ToastProvider";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -20,6 +21,8 @@ export default function SettingsDialog({
   onLogout,
   authenticated,
 }: SettingsDialogProps) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(settings.title);
   const [columns, setColumns] = useState(settings.layout.columns);
   const [searchEngine, setSearchEngine] = useState(settings.search.engine);
@@ -222,6 +225,68 @@ export default function SettingsDialog({
                 placeholder="Min 4 characters"
                 className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
               />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-[var(--border)]" />
+
+            {/* Import/Export */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Bookmarks</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/config/export");
+                      if (!res.ok) { toast("Export failed", "error"); return; }
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `homepage-bookmarks-${new Date().toISOString().split("T")[0]}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast("Bookmarks exported", "success");
+                    } catch { toast("Export failed", "error"); }
+                  }}
+                  className="px-4 py-2 bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--surface-hover)] hover:border-[var(--border-hover)]"
+                >
+                  Export JSON
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--surface-hover)] hover:border-[var(--border-hover)]"
+                >
+                  Import JSON
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const text = await file.text();
+                      const data = JSON.parse(text);
+                      const res = await fetch("/api/config/import", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ groups: data.groups, mode: "merge" }),
+                      });
+                      const result = await res.json();
+                      if (result.success) {
+                        toast(result.result, "success");
+                        onSave([]);
+                      } else {
+                        toast(result.error || "Import failed", "error");
+                      }
+                    } catch { toast("Invalid JSON file", "error"); }
+                    e.target.value = "";
+                  }}
+                />
+              </div>
             </div>
           </div>
           <div className="flex items-center justify-between px-5 py-4 border-t border-[var(--border)]">

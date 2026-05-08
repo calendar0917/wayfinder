@@ -51,7 +51,7 @@ export const configSchema = z.object({
   widgets: z
     .array(
       z.object({
-        type: z.enum(["datetime", "greeting", "weather", "resources", "logo"]),
+        type: z.enum(["datetime", "greeting", "weather", "resources", "logo", "notes", "search"]),
         config: z.record(z.unknown()),
       })
     )

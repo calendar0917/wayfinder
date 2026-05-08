@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Markdown from "react-markdown";
 
 interface Message {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system" | "tool";
   content: string;
+  toolName?: string;
+  toolSuccess?: boolean;
 }
 
 interface ToolEvent {
@@ -22,6 +25,32 @@ interface AISidePanelProps {
   authenticated: boolean;
 }
 
+function ToolCard({ name, success, result }: { name: string; success: boolean; result: string }) {
+  return (
+    <div className={`px-3 py-2 rounded-[var(--radius-sm)] border text-xs ${
+      success
+        ? "bg-[var(--success-soft)] border-[var(--success)] text-[var(--success)]"
+        : "bg-[var(--error-soft)] border-[var(--error)] text-[var(--error)]"
+    }`}>
+      <div className="flex items-center gap-1.5 mb-0.5">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          {success ? (
+            <path d="M20 6L9 17l-5-5" />
+          ) : (
+            <>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </>
+          )}
+        </svg>
+        <span className="font-semibold">{name}</span>
+      </div>
+      {result && <div className="opacity-80">{result}</div>}
+    </div>
+  );
+}
+
 export default function AISidePanel({ open, onClose, onConfigUpdate, authenticated }: AISidePanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -37,21 +66,15 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Show login hint when auth state changes while panel is open
   useEffect(() => {
-    if (open && !authenticated) {
-      setMessages([]);
-    }
+    if (open && !authenticated) setMessages([]);
   }, [open, authenticated]);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || streaming) return;
 
     if (!authenticated) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "system", content: "Please login first to use AI. Click Settings or go to /login." },
-      ]);
+      setMessages((prev) => [...prev, { role: "system", content: "Please login first to use AI. Click Settings or go to /login." }]);
       return;
     }
 
@@ -69,23 +92,14 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
 
       if (!res.ok) {
         let errorMsg = "AI request failed";
-        try {
-          const err = await res.json();
-          errorMsg = err.error || errorMsg;
-        } catch { /* ignore */ }
-        setMessages((prev) => [
-          ...prev,
-          { role: "system", content: errorMsg },
-        ]);
+        try { const err = await res.json(); errorMsg = err.error || errorMsg; } catch { /* ignore */ }
+        setMessages((prev) => [...prev, { role: "system", content: errorMsg }]);
         return;
       }
 
       const reader = res.body?.getReader();
       if (!reader) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "system", content: "No response stream received." },
-        ]);
+        setMessages((prev) => [...prev, { role: "system", content: "No response stream received." }]);
         return;
       }
 
@@ -112,10 +126,26 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
               assistantContent += event.content;
               setMessages((prev) => {
                 const updated = [...prev];
-                updated[updated.length - 1] = {
-                  role: "assistant",
-                  content: assistantContent,
-                };
+                updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+                return updated;
+              });
+            } else if (event.type === "tool_executing") {
+              setMessages((prev) => [...prev, { role: "tool", content: "...", toolName: event.name, toolSuccess: false }]);
+            } else if (event.type === "tool_result") {
+              setMessages((prev) => {
+                const updated = [...prev];
+                // Update the last tool_executing message with result
+                for (let i = updated.length - 1; i >= 0; i--) {
+                  if (updated[i].role === "tool" && updated[i].content === "...") {
+                    updated[i] = {
+                      role: "tool",
+                      content: event.result || "",
+                      toolName: updated[i].toolName,
+                      toolSuccess: event.success ?? true,
+                    };
+                    break;
+                  }
+                }
                 return updated;
               });
             } else if (event.type === "config_updated") {
@@ -123,10 +153,7 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
             } else if (event.type === "error") {
               setMessages((prev) => {
                 const updated = [...prev];
-                updated[updated.length - 1] = {
-                  role: "system",
-                  content: event.content || "Stream error",
-                };
+                updated[updated.length - 1] = { role: "system", content: event.content || "Stream error" };
                 return updated;
               });
             }
@@ -136,22 +163,15 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
         }
       }
 
-      // If stream ended with no content at all, show a message
       if (!hasContent) {
         setMessages((prev) => {
           const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: "system",
-            content: "AI returned no response. Check your API key and model settings.",
-          };
+          updated[updated.length - 1] = { role: "system", content: "AI returned no response. Check your API key and model settings." };
           return updated;
         });
       }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "system", content: "Connection error. Please try again." },
-      ]);
+      setMessages((prev) => [...prev, { role: "system", content: "Connection error. Please try again." }]);
     } finally {
       setStreaming(false);
     }
@@ -174,7 +194,6 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
           animation: open ? "slideInRight 0.2s cubic-bezier(0.16, 1, 0.3, 1)" : undefined,
         }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
           <h2 className="text-sm font-semibold text-[var(--text)]">AI Assistant</h2>
           <button
@@ -186,14 +205,11 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
             </svg>
           </button>
         </div>
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
           {!authenticated && messages.length === 0 && (
             <div className="text-center py-8">
               <p className="text-sm font-medium text-[var(--text-secondary)] mb-1">Login required</p>
-              <p className="text-xs text-[var(--text-tertiary)]">
-                Authenticate in Settings to use AI features.
-              </p>
+              <p className="text-xs text-[var(--text-tertiary)]">Authenticate in Settings to use AI features.</p>
             </div>
           )}
           {authenticated && messages.length === 0 && (
@@ -206,30 +222,34 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
               key={i}
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              <div
-                className={`max-w-[90%] px-3 py-2 rounded-[var(--radius-md)] text-sm whitespace-pre-wrap ${
-                  msg.role === "user"
-                    ? "bg-[var(--accent)] text-white"
-                    : msg.role === "system"
-                      ? "bg-[var(--warning-soft)] text-[var(--warning)] border border-[var(--warning)]"
-                      : "bg-[var(--surface-alt)] text-[var(--text)] border border-[var(--border)]"
-                }`}
-              >
-                {msg.content || (
-                  <span className="inline-block w-2 h-4 bg-[var(--text-tertiary)] animate-pulse" />
-                )}
-              </div>
+              {msg.role === "tool" ? (
+                <ToolCard name={msg.toolName || "tool"} success={msg.toolSuccess ?? true} result={msg.content === "..." ? "" : msg.content} />
+              ) : (
+                <div
+                  className={`max-w-[90%] px-3 py-2 rounded-[var(--radius-md)] text-sm ${
+                    msg.role === "user"
+                      ? "bg-[var(--accent)] text-white whitespace-pre-wrap"
+                      : msg.role === "system"
+                        ? "bg-[var(--warning-soft)] text-[var(--warning)] border border-[var(--warning)] whitespace-pre-wrap"
+                        : "bg-[var(--surface-alt)] text-[var(--text)] border border-[var(--border)] ai-markdown"
+                  }`}
+                >
+                  {msg.role === "assistant" && msg.content ? (
+                    <Markdown>{msg.content}</Markdown>
+                  ) : msg.content ? (
+                    msg.content
+                  ) : (
+                    <span className="inline-block w-2 h-4 bg-[var(--text-tertiary)] animate-pulse" />
+                  )}
+                </div>
+              )}
             </div>
           ))}
           <div ref={messagesEndRef} />
         </div>
-        {/* Input */}
         <div className="px-4 py-3 border-t border-[var(--border)]">
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendMessage();
-            }}
+            onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
             className="flex gap-2"
           >
             <input

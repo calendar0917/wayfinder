@@ -10,6 +10,7 @@ interface BookmarkGridProps {
   onDeleteBookmark?: (groupName: string, bookmarkName: string) => void;
   onAddBookmark?: (groupName: string) => void;
   onDeleteGroup?: (groupName: string) => void;
+  onReorderBookmark?: (groupName: string, fromIndex: number, toIndex: number) => void;
 }
 
 export default function BookmarkGrid({
@@ -19,6 +20,7 @@ export default function BookmarkGrid({
   onDeleteBookmark,
   onAddBookmark,
   onDeleteGroup,
+  onReorderBookmark,
 }: BookmarkGridProps) {
   return (
     <div
@@ -33,6 +35,7 @@ export default function BookmarkGrid({
           onDeleteBookmark={onDeleteBookmark}
           onAddBookmark={onAddBookmark}
           onDeleteGroup={onDeleteGroup}
+          onReorderBookmark={onReorderBookmark}
         />
       ))}
       <style>{`
