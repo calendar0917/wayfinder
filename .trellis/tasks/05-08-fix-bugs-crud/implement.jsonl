@@ -1,0 +1,6 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": "docs/API_SPEC.md", "reason": "API contract for config/ai routes"}
+{"file": "docs/CONFIG_SCHEMA.md", "reason": "YAML schema for CRUD forms"}
+{"file": "docs/ARCHITECTURE.md", "reason": "Data flow patterns"}

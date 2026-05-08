@@ -1,0 +1,10 @@
+services:
+  homepage:
+    build: .
+    container_name: homepage
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    pid: host
+    restart: unless-stopped
