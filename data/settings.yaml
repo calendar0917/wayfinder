@@ -1,4 +1,4 @@
-version: 1
+version: 2
 settings:
   title: My Dashboard
   theme: light
@@ -37,6 +37,7 @@ groups:
         tags: []
         server: ''
         container: ''
+        statusCheck: false
       - name: YouTube
         url: https://www.youtube.com
         icon: https://www.youtube.com/favicon.ico
@@ -45,6 +46,7 @@ groups:
         tags: []
         server: ''
         container: ''
+        statusCheck: false
       - name: GitHub
         url: https://github.com
         icon: https://github.com/favicon.ico
@@ -53,41 +55,21 @@ groups:
         tags: []
         server: ''
         container: ''
+        statusCheck: false
+      - name: 20050917.xyz
+        url: https://20050917.xyz
+        icon: ''
+        description: 监控 20050917.xyz 的在线状态
+        shortcut: ''
+        tags: []
+        server: ''
+        container: ''
+        statusCheck: true
     groups: []
   - name: 社交媒体
     icon: ''
     collapsed: false
     bookmarks:
-      - name: Twitter/X
-        url: https://x.com
-        icon: https://x.com/favicon.ico
-        description: ''
-        shortcut: ''
-        tags:
-          - 社交媒体
-          - Twitter
-        server: ''
-        container: ''
-      - name: 抖音
-        url: https://www.douyin.com
-        icon: https://www.douyin.com/favicon.ico
-        description: ''
-        shortcut: ''
-        tags:
-          - 社交媒体
-          - 抖音
-        server: ''
-        container: ''
-      - name: 微博
-        url: https://weibo.com
-        icon: https://weibo.com/favicon.ico
-        description: ''
-        shortcut: ''
-        tags:
-          - 社交媒体
-          - 微博
-        server: ''
-        container: ''
       - name: Instagram
         url: https://www.instagram.com
         icon: https://static.cdninstagram.com/rsrc.php/v3/yt/r/30PrGfR3xhB.png
@@ -98,4 +80,38 @@ groups:
           - Instagram
         server: ''
         container: ''
+        statusCheck: false
+      - name: Twitter/X
+        url: https://x.com
+        icon: https://x.com/favicon.ico
+        description: ''
+        shortcut: ''
+        tags:
+          - 社交媒体
+          - Twitter
+        server: ''
+        container: ''
+        statusCheck: false
+      - name: 抖音
+        url: https://www.douyin.com
+        icon: https://www.douyin.com/favicon.ico
+        description: ''
+        shortcut: ''
+        tags:
+          - 社交媒体
+          - 抖音
+        server: ''
+        container: ''
+        statusCheck: false
+      - name: 微博
+        url: https://weibo.com
+        icon: https://weibo.com/favicon.ico
+        description: ''
+        shortcut: ''
+        tags:
+          - 社交媒体
+          - 微博
+        server: ''
+        container: ''
+        statusCheck: false
     groups: []

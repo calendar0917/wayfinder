@@ -43,7 +43,9 @@ export default function ResourcesWidget() {
     function fetchResources() {
       fetch("/api/system")
         .then((r) => r.json())
-        .then(setResources)
+        .then((data) => {
+          if (data.cpu) setResources(data);
+        })
         .catch(() => {});
     }
     fetchResources();

@@ -13,8 +13,22 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useConfig } from "@/hooks/useConfig";
 import { useMutate } from "@/hooks/useMutate";
 import { useKeyboard } from "@/hooks/useKeyboard";
+import { useStatusCheck } from "@/hooks/useStatusCheck";
+import type { Group } from "@/types/config";
 
 type Theme = "auto" | "light" | "dark";
+
+function flattenBookmarks(groups: Group[]): Bookmark[] {
+  const result: Bookmark[] = [];
+  function walk(groups: Group[]) {
+    for (const g of groups) {
+      result.push(...g.bookmarks);
+      if (g.groups) walk(g.groups);
+    }
+  }
+  walk(groups);
+  return result;
+}
 
 export default function Dashboard() {
   const { config, setConfig, authenticated, setAuthenticated, canEdit, fetchConfig, applyTheme } = useConfig();
@@ -28,7 +42,7 @@ export default function Dashboard() {
   const [bookmarkModalOpen, setBookmarkModalOpen] = useState(false);
   const [bookmarkModalGroup, setBookmarkModalGroup] = useState<string | null>(null);
   const [bookmarkModalInitial, setBookmarkModalInitial] = useState<{
-    name?: string; url?: string; icon?: string; description?: string; tags?: string[];
+    name?: string; url?: string; icon?: string; description?: string; tags?: string[]; statusCheck?: boolean;
   } | undefined>(undefined);
   const [bookmarkModalMode, setBookmarkModalMode] = useState<"add" | "edit">("add");
 
@@ -37,6 +51,10 @@ export default function Dashboard() {
   const [newGroupName, setNewGroupName] = useState("");
 
   const mutate = useMutate({ setConfig, setAuthenticated, applyTheme, fetchConfig });
+
+  // Flatten all bookmarks recursively for status checking
+  const allBookmarks = config ? flattenBookmarks(config.groups) : [];
+  const { statuses } = useStatusCheck(allBookmarks);
 
   useKeyboard(
     { aiOpen, paletteOpen, settingsOpen },
@@ -98,13 +116,14 @@ export default function Dashboard() {
       icon: bookmark.icon,
       description: bookmark.description,
       tags: bookmark.tags,
+      statusCheck: bookmark.statusCheck,
     });
     setBookmarkModalMode("edit");
     setBookmarkModalOpen(true);
   }, []);
 
   const handleBookmarkModalSave = useCallback(
-    async (data: { name: string; url: string; icon: string; description: string; tags: string[] }) => {
+    async (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean }) => {
       if (!bookmarkModalGroup) return;
       setBookmarkModalOpen(false);
       if (bookmarkModalMode === "edit" && bookmarkModalInitial?.name) {
@@ -116,6 +135,7 @@ export default function Dashboard() {
           icon: data.icon !== bookmarkModalInitial.icon ? data.icon : undefined,
           description: data.description !== bookmarkModalInitial.description ? data.description : undefined,
           tags: JSON.stringify(data.tags) !== JSON.stringify(bookmarkModalInitial.tags) ? data.tags : undefined,
+          statusCheck: data.statusCheck !== bookmarkModalInitial.statusCheck ? data.statusCheck : undefined,
         });
       } else {
         await mutate("add_bookmark", { ...data, group: bookmarkModalGroup });
@@ -316,6 +336,7 @@ export default function Dashboard() {
           onDeleteGroup={handleDeleteGroup}
           onAddGroup={handleAddGroup}
           onReorderBookmark={handleReorderBookmark}
+          statuses={statuses}
         />
       </main>
 

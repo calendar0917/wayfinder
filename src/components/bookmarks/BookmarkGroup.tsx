@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import type { Group, Bookmark } from "@/types/config";
+import type { StatusResult } from "@/hooks/useStatusCheck";
 import BookmarkCard from "./BookmarkCard";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 
@@ -12,6 +13,7 @@ interface BookmarkGroupProps {
   onAddBookmark?: (groupName: string) => void;
   onEditBookmark?: (groupName: string, bookmark: Bookmark) => void;
   onDeleteGroup?: (groupName: string) => void;
+  statuses?: Map<string, StatusResult>;
 }
 
 export default function BookmarkGroup({
@@ -21,6 +23,7 @@ export default function BookmarkGroup({
   onAddBookmark,
   onEditBookmark,
   onDeleteGroup,
+  statuses,
 }: BookmarkGroupProps) {
   const [collapsed, setCollapsed] = useState(group.collapsed);
 
@@ -114,6 +117,7 @@ export default function BookmarkGroup({
                             ? () => onEditBookmark(group.name, bookmark)
                             : undefined
                         }
+                        statusResult={statuses?.get(bookmark.url)}
                       />
                     </div>
                   )}
@@ -135,6 +139,7 @@ export default function BookmarkGroup({
               onAddBookmark={onAddBookmark}
               onEditBookmark={onEditBookmark}
               onDeleteGroup={onDeleteGroup}
+              statuses={statuses}
             />
           ))}
         </div>

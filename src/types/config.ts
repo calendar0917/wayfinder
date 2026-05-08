@@ -28,6 +28,7 @@ export interface Bookmark {
   tags: string[];
   server: string;
   container: string;
+  statusCheck?: boolean;
 }
 
 export interface Group {

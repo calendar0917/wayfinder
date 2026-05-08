@@ -62,6 +62,7 @@ export const toolDefinitions = [
           description: { type: "string", description: "Short description" },
           shortcut: { type: "string", description: "Keyboard shortcut hint" },
           tags: { type: "array", items: { type: "string" }, description: "Tags" },
+          statusCheck: { type: "boolean", description: "Enable HTTP status monitoring (default false)" },
         },
         required: ["name", "url"],
       },
@@ -99,6 +100,9 @@ export const toolDefinitions = [
           description: { type: "string", description: "New description (optional)" },
           shortcut: { type: "string", description: "New shortcut hint (optional)" },
           tags: { type: "array", items: { type: "string" }, description: "New tags (optional)" },
+          server: { type: "string", description: "Server hostname for Docker integration (optional)" },
+          container: { type: "string", description: "Docker container name (optional)" },
+          statusCheck: { type: "boolean", description: "Enable HTTP status monitoring (optional)" },
         },
         required: ["name"],
       },
@@ -366,6 +370,7 @@ export function executeTool(
         tags: (args.tags as string[]) || [],
         server: (args.server as string) || "",
         container: (args.container as string) || "",
+        statusCheck: (args.statusCheck as boolean) || false,
       };
       group.bookmarks.push(bookmark);
       return {
@@ -408,6 +413,9 @@ export function executeTool(
         description: "description",
         shortcut: "shortcut",
         tags: "tags",
+        server: "server",
+        container: "container",
+        statusCheck: "statusCheck",
       };
       const applied: string[] = [];
       for (const [argKey, bookmarkKey] of Object.entries(fieldMap)) {

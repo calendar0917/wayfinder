@@ -4,12 +4,16 @@ import { executeTool } from "@/lib/ai-tools";
 import { isAuthenticated, hashPassword, setAuthCookie } from "@/lib/auth";
 import { gitCommit } from "@/lib/git";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkCsrf } from "@/lib/csrf";
 
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (!checkRateLimit(ip)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+    if (!checkCsrf(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const config = readConfig();
     if (!(await isAuthenticated(config.settings.passwordHash))) {
@@ -36,8 +40,10 @@ export async function POST(request: NextRequest) {
         // Auto-login after setting password so the user doesn't lock themselves out
         await setAuthCookie();
       }
-      writeConfig(result.config);
-      gitCommit(`edit: ${operation}`);
+      if (operation !== "reload_config") {
+        writeConfig(result.config);
+        gitCommit(`edit: ${operation}`);
+      }
     }
     return NextResponse.json({
       success: result.success,

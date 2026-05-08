@@ -2,12 +2,14 @@
 
 import type { Bookmark } from "@/types/config";
 import BookmarkIcon from "./BookmarkIcon";
+import type { StatusResult } from "@/hooks/useStatusCheck";
 
 interface BookmarkCardProps {
   bookmark: Bookmark;
   editMode?: boolean;
   onDelete?: (name: string) => void;
   onEdit?: () => void;
+  statusResult?: StatusResult;
 }
 
 export default function BookmarkCard({
@@ -15,6 +17,7 @@ export default function BookmarkCard({
   editMode = false,
   onDelete,
   onEdit,
+  statusResult,
 }: BookmarkCardProps) {
   return (
     <a
@@ -25,6 +28,26 @@ export default function BookmarkCard({
       onClick={editMode ? (e) => { e.preventDefault(); onEdit?.(); } : undefined}
     >
       <BookmarkIcon src={bookmark.icon} name={bookmark.name} />
+      {bookmark.statusCheck && statusResult && (
+        <span
+          className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+            statusResult.status === "up"
+              ? "bg-green-500"
+              : statusResult.status === "checking"
+              ? "bg-gray-400 animate-pulse"
+              : "bg-red-500"
+          }`}
+          title={
+            statusResult.status === "up"
+              ? `Up (${statusResult.responseTime}ms)`
+              : statusResult.status === "down"
+              ? `Down (HTTP ${statusResult.statusCode})`
+              : statusResult.status === "error"
+              ? "Unreachable"
+              : "Checking..."
+          }
+        />
+      )}
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-sm font-medium truncate">{bookmark.name}</span>
         {bookmark.description && (

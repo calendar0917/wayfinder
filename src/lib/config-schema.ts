@@ -12,6 +12,7 @@ const bookmarkSchema = z.object({
   tags: z.array(z.string()).optional().default([]),
   server: z.string().optional().default(""),
   container: z.string().optional().default(""),
+  statusCheck: z.boolean().optional().default(false),
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,10 +60,10 @@ export const configSchema = z.object({
   groups: z.array(groupSchema).default([]),
 });
 
-export const CURRENT_CONFIG_VERSION = 1;
+export const CURRENT_CONFIG_VERSION = 2;
 
 export const DEFAULT_CONFIG = {
-  version: 1,
+  version: 2,
   settings: {
     title: "My Dashboard",
     theme: "auto" as const,
@@ -96,6 +97,7 @@ export const DEFAULT_CONFIG = {
           tags: [],
           server: "",
           container: "",
+          statusCheck: false,
         },
       ],
     },

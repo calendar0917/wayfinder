@@ -1,21 +1,28 @@
-import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
+import { NextRequest, NextResponse } from "next/server";
+import { execFileSync } from "child_process";
 import { readConfigSafe, writeConfig, readConfig } from "@/lib/config";
 import { isAuthenticated } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { checkCsrf } from "@/lib/csrf";
 
-const execAsync = promisify(exec);
+export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+  if (!checkCsrf(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-export async function POST() {
   const config = readConfig();
   if (!(await isAuthenticated(config.settings.passwordHash))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    // Get the previous commit
-    const { stdout } = await execAsync("git log --oneline -2 -- data/settings.yaml", {
+    const stdout = execFileSync("git", ["log", "--oneline", "-2", "--", "data/settings.yaml"], {
       cwd: process.cwd(),
+      encoding: "utf-8",
     });
     const lines = stdout.trim().split("\n");
     if (lines.length < 2) {
@@ -23,14 +30,18 @@ export async function POST() {
     }
     const prevHash = lines[1].split(" ")[0];
 
-    // Checkout the previous version of settings.yaml
-    await execAsync(`git checkout ${prevHash} -- data/settings.yaml`, {
+    execFileSync("git", ["checkout", prevHash, "--", "data/settings.yaml"], {
       cwd: process.cwd(),
+      stdio: "pipe",
     });
 
-    // Commit the undo
-    await execAsync('git add data/settings.yaml && git commit -m "undo: revert last change"', {
+    execFileSync("git", ["add", "data/settings.yaml"], {
       cwd: process.cwd(),
+      stdio: "pipe",
+    });
+    execFileSync("git", ["commit", "-m", "undo: revert last change"], {
+      cwd: process.cwd(),
+      stdio: "pipe",
     });
 
     return NextResponse.json({ success: true, config: readConfigSafe() });

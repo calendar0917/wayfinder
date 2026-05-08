@@ -2,10 +2,32 @@ import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
 import { configSchema, DEFAULT_CONFIG, CURRENT_CONFIG_VERSION } from "./config-schema";
-import type { AppConfig, SafeConfig } from "@/types/config";
+import type { AppConfig, SafeConfig, Group } from "@/types/config";
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const CONFIG_FILE = path.join(DATA_DIR, "settings.yaml");
+
+function resolveEnvVar(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const match = value.match(/^\$\{(\w+)\}$/);
+  if (match) {
+    return process.env[match[1]] ?? value;
+  }
+  return value;
+}
+
+function resolveEnvVars(obj: unknown): unknown {
+  if (typeof obj === "string") return resolveEnvVar(obj);
+  if (Array.isArray(obj)) return obj.map(resolveEnvVars);
+  if (obj && typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = resolveEnvVars(value);
+    }
+    return result;
+  }
+  return obj;
+}
 
 function ensureDataDir(): void {
   if (!fs.existsSync(DATA_DIR)) {
@@ -22,7 +44,8 @@ export function readConfig(): AppConfig {
   }
   try {
     const raw = yaml.load(fs.readFileSync(CONFIG_FILE, "utf-8"));
-    const config = configSchema.parse(raw ?? {});
+    const resolved = resolveEnvVars(raw ?? {});
+    const config = configSchema.parse(resolved);
     // Run migrations if config is from an older version
     if (config.version < CURRENT_CONFIG_VERSION) {
       migrateConfig(config);
@@ -73,7 +96,17 @@ export function readConfigSafe(): SafeConfig {
   };
 }
 
-function migrateConfig(_config: AppConfig): void {
-  // Add migration logic here for future versions
-  // e.g. if upgrading from v1 to v2: add new fields with defaults
+function migrateConfig(config: AppConfig): void {
+  // v1 -> v2: add statusCheck: false to all bookmarks
+  if (config.version < 2) {
+    function addStatusCheck(groups: Group[]) {
+      for (const g of groups) {
+        for (const b of g.bookmarks ?? []) {
+          if (b.statusCheck === undefined) b.statusCheck = false;
+        }
+        if (g.groups) addStatusCheck(g.groups);
+      }
+    }
+    addStatusCheck(config.groups);
+  }
 }

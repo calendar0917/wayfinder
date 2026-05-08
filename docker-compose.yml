@@ -7,5 +7,7 @@ services:
     volumes:
       - ./data:/app/data
     env_file: .env.local
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
     pid: host
     restart: unless-stopped

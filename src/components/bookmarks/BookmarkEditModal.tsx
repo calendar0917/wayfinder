@@ -6,8 +6,8 @@ import { getFaviconUrl } from "@/lib/favicon";
 interface BookmarkEditModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { name: string; url: string; icon: string; description: string; tags: string[] }) => void;
-  initial?: { name?: string; url?: string; icon?: string; description?: string; tags?: string[] };
+  onSave: (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean }) => void;
+  initial?: { name?: string; url?: string; icon?: string; description?: string; tags?: string[]; statusCheck?: boolean };
   title?: string;
 }
 
@@ -23,6 +23,7 @@ export default function BookmarkEditModal({
   const [icon, setIcon] = useState(initial?.icon || "");
   const [description, setDescription] = useState(initial?.description || "");
   const [tagsStr, setTagsStr] = useState((initial?.tags || []).join(", "));
+  const [statusCheck, setStatusCheck] = useState(initial?.statusCheck || false);
   const nameRef = useRef<HTMLInputElement>(null);
   const iconTouchedRef = useRef(false);
 
@@ -34,6 +35,7 @@ export default function BookmarkEditModal({
       setIcon(initial?.icon || "");
       setDescription(initial?.description || "");
       setTagsStr((initial?.tags || []).join(", "));
+      setStatusCheck(initial?.statusCheck || false);
       setTimeout(() => nameRef.current?.focus(), 50);
     }
   }, [open, initial]);
@@ -47,7 +49,7 @@ export default function BookmarkEditModal({
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
-    onSave({ name: name.trim(), url: url.trim(), icon: icon.trim(), description: description.trim(), tags });
+    onSave({ name: name.trim(), url: url.trim(), icon: icon.trim(), description: description.trim(), tags, statusCheck });
   }
 
   return (
@@ -129,6 +131,18 @@ export default function BookmarkEditModal({
                 placeholder="search, github (comma separated)"
                 className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="statusCheck"
+                checked={statusCheck}
+                onChange={(e) => setStatusCheck(e.target.checked)}
+                className="accent-[var(--accent)] w-3.5 h-3.5 cursor-pointer"
+              />
+              <label htmlFor="statusCheck" className="text-xs font-medium text-[var(--text-secondary)] cursor-pointer select-none">
+                Monitor status (HTTP probe)
+              </label>
             </div>
             <div className="flex justify-end gap-2 mt-2">
               <button

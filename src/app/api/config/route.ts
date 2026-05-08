@@ -5,6 +5,7 @@ import { configSchema } from "@/lib/config-schema";
 import { isAuthenticated } from "@/lib/auth";
 import { gitCommit } from "@/lib/git";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkCsrf } from "@/lib/csrf";
 
 export async function GET() {
   const config = readConfigSafe();
@@ -16,6 +17,9 @@ export async function PUT(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (!checkRateLimit(ip)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+    if (!checkCsrf(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const config = readConfig();
     if (!(await isAuthenticated(config.settings.passwordHash))) {

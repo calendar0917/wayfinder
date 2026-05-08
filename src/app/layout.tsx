@@ -5,7 +5,7 @@ import ToastProvider from "@/components/ui/ToastProvider";
 export const metadata: Metadata = {
   title: "Homepage",
   description: "Personal dashboard",
-  icons: { icon: "/favicon.svg" },
+  icons: { icon: [{ url: "/favicon.svg", type: "image/svg+xml" }] },
   manifest: "/manifest.json",
 };
 

@@ -1,4 +1,5 @@
-import os from "fs";
+import fs from "fs";
+import os from "os";
 import { platform } from "os";
 
 interface CPUStats {
@@ -35,12 +36,10 @@ const CACHE_TTL = 3000;
 let prevIdle = 0;
 let prevTotal = 0;
 
-// Cross-platform: use os module for memory and uptime
 function readCPU(): CPUStats {
   const plat = platform();
   if (plat === "linux") {
     try {
-      const fs = require("fs");
       const stat = fs.readFileSync("/proc/stat", "utf-8");
       const parts = stat.split("\n")[0].split(/\s+/).slice(1).map(Number);
       const idle = parts[3] + parts[4];
@@ -55,9 +54,8 @@ function readCPU(): CPUStats {
       return { percent: 0 };
     }
   }
-  // macOS / Windows: use os.cpus() for approximate CPU usage
   try {
-    const cpus = require("os").cpus();
+    const cpus = os.cpus();
     let idle = 0;
     let total = 0;
     for (const cpu of cpus) {
@@ -79,9 +77,8 @@ function readCPU(): CPUStats {
 
 function readMemory(): MemoryStats {
   try {
-    const osModule = require("os");
-    const total = osModule.totalmem();
-    const free = osModule.freemem();
+    const total = os.totalmem();
+    const free = os.freemem();
     const used = total - free;
     const percent = total === 0 ? 0 : (used / total) * 100;
     return { total, used, free, percent: Math.round(percent * 10) / 10 };
@@ -92,8 +89,7 @@ function readMemory(): MemoryStats {
 
 function readUptime(): UptimeStats {
   try {
-    const osModule = require("os");
-    const seconds = Math.floor(osModule.uptime());
+    const seconds = Math.floor(os.uptime());
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -111,14 +107,12 @@ function readCPUTemp(): CPUTempStats {
   const plat = platform();
   if (plat === "linux") {
     try {
-      const fs = require("fs");
       const temp = fs.readFileSync("/sys/class/thermal/thermal_zone0/temp", "utf-8");
       return { celsius: parseInt(temp.trim(), 10) / 1000 };
     } catch {
       return { celsius: null };
     }
   }
-  // CPU temp not easily available cross-platform without native deps
   return { celsius: null };
 }
 

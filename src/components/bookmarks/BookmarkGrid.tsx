@@ -1,6 +1,7 @@
 "use client";
 
 import type { Group, Bookmark } from "@/types/config";
+import type { StatusResult } from "@/hooks/useStatusCheck";
 import BookmarkGroup from "./BookmarkGroup";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 
@@ -14,6 +15,7 @@ interface BookmarkGridProps {
   onDeleteGroup?: (groupName: string) => void;
   onAddGroup?: () => void;
   onReorderBookmark?: (groupName: string, fromIndex: number, toIndex: number) => void;
+  statuses?: Map<string, StatusResult>;
 }
 
 export default function BookmarkGrid({
@@ -26,6 +28,7 @@ export default function BookmarkGrid({
   onDeleteGroup,
   onAddGroup,
   onReorderBookmark,
+  statuses,
 }: BookmarkGridProps) {
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
@@ -50,6 +53,7 @@ export default function BookmarkGrid({
             onAddBookmark={onAddBookmark}
             onEditBookmark={onEditBookmark}
             onDeleteGroup={onDeleteGroup}
+            statuses={statuses}
           />
         ))}
         {editMode && onAddGroup && (
