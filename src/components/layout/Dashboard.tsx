@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import type { Bookmark } from "@/types/config";
 import WidgetRow from "@/components/layout/WidgetRow";
 import BookmarkGrid from "@/components/bookmarks/BookmarkGrid";
 import BookmarkEditModal from "@/components/bookmarks/BookmarkEditModal";
@@ -22,8 +23,18 @@ export default function Dashboard() {
   const [aiOpen, setAiOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Bookmark modal state
   const [bookmarkModalOpen, setBookmarkModalOpen] = useState(false);
-  const [addBookmarkGroup, setAddBookmarkGroup] = useState<string | null>(null);
+  const [bookmarkModalGroup, setBookmarkModalGroup] = useState<string | null>(null);
+  const [bookmarkModalInitial, setBookmarkModalInitial] = useState<{
+    name?: string; url?: string; icon?: string; description?: string; tags?: string[];
+  } | undefined>(undefined);
+  const [bookmarkModalMode, setBookmarkModalMode] = useState<"add" | "edit">("add");
+
+  // Add group modal
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
 
   const mutate = useMutate({ setConfig, setAuthenticated, applyTheme, fetchConfig });
 
@@ -67,25 +78,63 @@ export default function Dashboard() {
       const res = await fetch("/api/config/undo", { method: "POST" });
       if (res.status === 401) { setAuthenticated(false); return; }
       const data = await res.json();
-      if (data.success) {
-        fetchConfig();
-      }
+      if (data.success) fetchConfig();
     } catch { /* ignore */ }
   }, [fetchConfig, setAuthenticated]);
 
-  const handleAddBookmark = useCallback((groupName: string) => {
-    setAddBookmarkGroup(groupName);
+  // --- Bookmark modal handlers ---
+  const openAddBookmark = useCallback((groupName: string) => {
+    setBookmarkModalGroup(groupName);
+    setBookmarkModalInitial(undefined);
+    setBookmarkModalMode("add");
+    setBookmarkModalOpen(true);
+  }, []);
+
+  const openEditBookmark = useCallback((groupName: string, bookmark: Bookmark) => {
+    setBookmarkModalGroup(groupName);
+    setBookmarkModalInitial({
+      name: bookmark.name,
+      url: bookmark.url,
+      icon: bookmark.icon,
+      description: bookmark.description,
+      tags: bookmark.tags,
+    });
+    setBookmarkModalMode("edit");
     setBookmarkModalOpen(true);
   }, []);
 
   const handleBookmarkModalSave = useCallback(
     async (data: { name: string; url: string; icon: string; description: string; tags: string[] }) => {
-      if (!addBookmarkGroup) return;
+      if (!bookmarkModalGroup) return;
       setBookmarkModalOpen(false);
-      await mutate("add_bookmark", { ...data, group: addBookmarkGroup });
+      if (bookmarkModalMode === "edit" && bookmarkModalInitial?.name) {
+        await mutate("update_bookmark", {
+          name: bookmarkModalInitial.name,
+          group: bookmarkModalGroup,
+          newName: data.name !== bookmarkModalInitial.name ? data.name : undefined,
+          url: data.url !== bookmarkModalInitial.url ? data.url : undefined,
+          icon: data.icon !== bookmarkModalInitial.icon ? data.icon : undefined,
+          description: data.description !== bookmarkModalInitial.description ? data.description : undefined,
+          tags: JSON.stringify(data.tags) !== JSON.stringify(bookmarkModalInitial.tags) ? data.tags : undefined,
+        });
+      } else {
+        await mutate("add_bookmark", { ...data, group: bookmarkModalGroup });
+      }
     },
-    [addBookmarkGroup, mutate]
+    [bookmarkModalGroup, bookmarkModalMode, bookmarkModalInitial, mutate]
   );
+
+  // --- Add group handler ---
+  const handleAddGroup = useCallback(async () => {
+    setAddGroupOpen(true);
+  }, []);
+
+  const handleAddGroupSubmit = useCallback(async () => {
+    if (!newGroupName.trim()) return;
+    setAddGroupOpen(false);
+    await mutate("add_group", { name: newGroupName.trim() });
+    setNewGroupName("");
+  }, [newGroupName, mutate]);
 
   const handleSettingsSave = useCallback(
     async (mutations: { operation: string; arguments: Record<string, unknown> }[]) => {
@@ -110,18 +159,13 @@ export default function Dashboard() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ...current, settings }),
           });
-          if (res.status === 401) {
-            setAuthenticated(false);
-            return;
-          }
+          if (res.status === 401) { setAuthenticated(false); return; }
           const data = await res.json();
           if (data.version) { setConfig(data); applyTheme(data.settings?.theme || "auto"); }
           continue;
         }
         const result = await mutate(m.operation, m.arguments);
-        if (m.operation === "set_password" && result.success) {
-          await fetchConfig();
-        }
+        if (m.operation === "set_password" && result.success) await fetchConfig();
       }
     },
     [config, mutate, applyTheme, fetchConfig, setConfig, setAuthenticated]
@@ -260,15 +304,17 @@ export default function Dashboard() {
 
       <main className="max-w-screen-xl mx-auto px-6 py-6 flex flex-col gap-6">
         {config.widgets.length > 0 && (
-          <WidgetRow widgets={config.widgets} title={config.settings.title} />
+          <WidgetRow widgets={config.widgets} title={config.settings.title} editMode={editMode && canEdit} onRemoveWidget={(i) => mutate("remove_widget", { index: i })} onAddWidget={() => mutate("add_widget", { type: "notes" })} />
         )}
         <BookmarkGrid
           groups={config.groups}
           columns={config.settings.layout.columns}
           editMode={editMode && canEdit}
           onDeleteBookmark={handleDeleteBookmark}
-          onAddBookmark={handleAddBookmark}
+          onAddBookmark={openAddBookmark}
+          onEditBookmark={openEditBookmark}
           onDeleteGroup={handleDeleteGroup}
+          onAddGroup={handleAddGroup}
           onReorderBookmark={handleReorderBookmark}
         />
       </main>
@@ -276,7 +322,45 @@ export default function Dashboard() {
       <AISidePanel open={aiOpen} onClose={() => setAiOpen(false)} onConfigUpdate={fetchConfig} authenticated={authenticated} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} groups={config.groups} searchEngine={config.settings.search.engine} customUrl={config.settings.search.customUrl} authenticated={authenticated} onAiChat={handleAiChat} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={config.settings} onSave={handleSettingsSave} onLogout={handleLogout} authenticated={authenticated} />
-      <BookmarkEditModal open={bookmarkModalOpen} onClose={() => setBookmarkModalOpen(false)} onSave={handleBookmarkModalSave} title={`Add Bookmark to ${addBookmarkGroup || ""}`} />
+
+      {/* Bookmark add/edit modal */}
+      <BookmarkEditModal
+        open={bookmarkModalOpen}
+        onClose={() => setBookmarkModalOpen(false)}
+        onSave={handleBookmarkModalSave}
+        initial={bookmarkModalInitial}
+        title={bookmarkModalMode === "edit" ? "Edit Bookmark" : `Add Bookmark to ${bookmarkModalGroup || ""}`}
+      />
+
+      {/* Add group simple modal */}
+      {addGroupOpen && (
+        <>
+          <div className="fixed inset-0 bg-[rgba(var(--bg-rgb),0.6)] backdrop-blur-[4px)] z-[200] animate-[fadeIn_0.15s_ease]" onClick={() => setAddGroupOpen(false)} />
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="w-full max-w-[360px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] animate-[modalIn_0.2s_cubic-bezier(0.16,1,0.3,1)]" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-3 border-b border-[var(--border)]">
+                <h3 className="text-sm font-semibold text-[var(--text)]">Add Group</h3>
+              </div>
+              <form
+                onSubmit={(e) => { e.preventDefault(); handleAddGroupSubmit(); }}
+                className="p-5 flex flex-col gap-3"
+              >
+                <input
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Group name"
+                  className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setAddGroupOpen(false)} className="px-4 py-2 bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm font-medium cursor-pointer hover:bg-[var(--surface-hover)]">Cancel</button>
+                  <button type="submit" disabled={!newGroupName.trim()} className="px-4 py-2 bg-[var(--accent)] text-white border-none rounded-[var(--radius-sm)] text-sm font-semibold cursor-pointer hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed">Create</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

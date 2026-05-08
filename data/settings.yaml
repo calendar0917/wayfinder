@@ -1,0 +1,101 @@
+version: 1
+settings:
+  title: My Dashboard
+  theme: light
+  layout:
+    columns: 3
+  search:
+    engine: duckduckgo
+    customUrl: ''
+  apiKey: ''
+  apiBase: http://8.137.38.223:8090/v1
+  aiModel: deepseek-v4-pro
+  passwordHash: ''
+widgets:
+  - type: datetime
+    config:
+      format:
+        dateStyle: full
+        timeStyle: short
+      locale: zh
+  - type: greeting
+    config: {}
+  - type: resources
+    config: {}
+  - type: weather
+    config: {}
+groups:
+  - name: Getting Started
+    icon: ''
+    collapsed: false
+    bookmarks:
+      - name: linuxdo
+        url: https://linux.do
+        icon: https://linux.do/favicon.ico
+        description: Linux.do 社区
+        shortcut: ''
+        tags: []
+        server: ''
+        container: ''
+      - name: YouTube
+        url: https://www.youtube.com
+        icon: https://www.youtube.com/favicon.ico
+        description: YouTube 视频平台
+        shortcut: ''
+        tags: []
+        server: ''
+        container: ''
+      - name: GitHub
+        url: https://github.com
+        icon: https://github.com/favicon.ico
+        description: The world's largest open-source code hosting platform
+        shortcut: ''
+        tags: []
+        server: ''
+        container: ''
+    groups: []
+  - name: 社交媒体
+    icon: ''
+    collapsed: false
+    bookmarks:
+      - name: Twitter/X
+        url: https://x.com
+        icon: https://x.com/favicon.ico
+        description: ''
+        shortcut: ''
+        tags:
+          - 社交媒体
+          - Twitter
+        server: ''
+        container: ''
+      - name: 抖音
+        url: https://www.douyin.com
+        icon: https://www.douyin.com/favicon.ico
+        description: ''
+        shortcut: ''
+        tags:
+          - 社交媒体
+          - 抖音
+        server: ''
+        container: ''
+      - name: 微博
+        url: https://weibo.com
+        icon: https://weibo.com/favicon.ico
+        description: ''
+        shortcut: ''
+        tags:
+          - 社交媒体
+          - 微博
+        server: ''
+        container: ''
+      - name: Instagram
+        url: https://www.instagram.com
+        icon: https://static.cdninstagram.com/rsrc.php/v3/yt/r/30PrGfR3xhB.png
+        description: Instagram 社交平台
+        shortcut: ''
+        tags:
+          - 社交媒体
+          - Instagram
+        server: ''
+        container: ''
+    groups: []

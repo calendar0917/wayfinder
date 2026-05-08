@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { Group } from "@/types/config";
+import type { Group, Bookmark } from "@/types/config";
 import BookmarkCard from "./BookmarkCard";
-import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { Droppable, Draggable } from "@hello-pangea/dnd";
 
 interface BookmarkGroupProps {
   group: Group;
   editMode?: boolean;
   onDeleteBookmark?: (groupName: string, bookmarkName: string) => void;
   onAddBookmark?: (groupName: string) => void;
+  onEditBookmark?: (groupName: string, bookmark: Bookmark) => void;
   onDeleteGroup?: (groupName: string) => void;
-  onReorderBookmark?: (groupName: string, fromIndex: number, toIndex: number) => void;
 }
 
 export default function BookmarkGroup({
@@ -19,22 +19,14 @@ export default function BookmarkGroup({
   editMode = false,
   onDeleteBookmark,
   onAddBookmark,
+  onEditBookmark,
   onDeleteGroup,
-  onReorderBookmark,
 }: BookmarkGroupProps) {
   const [collapsed, setCollapsed] = useState(group.collapsed);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed((prev) => !prev);
   }, []);
-
-  const handleDragEnd = useCallback(
-    (result: DropResult) => {
-      if (!result.destination || result.source.index === result.destination.index) return;
-      onReorderBookmark?.(group.name, result.source.index, result.destination.index);
-    },
-    [group.name, onReorderBookmark]
-  );
 
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 stagger-item">
@@ -73,7 +65,11 @@ export default function BookmarkGroup({
             )}
             {onDeleteGroup && (
               <button
-                onClick={() => onDeleteGroup(group.name)}
+                onClick={() => {
+                  if (confirm(`Delete group "${group.name}" and all its bookmarks?`)) {
+                    onDeleteGroup(group.name);
+                  }
+                }}
                 className="px-2 py-1 text-xs font-semibold text-white bg-[var(--error)] border-none rounded-[4px] cursor-pointer transition-all duration-150 hover:shadow-[0_2px_8px_rgba(250,82,82,0.3)]"
               >
                 Delete
@@ -83,45 +79,50 @@ export default function BookmarkGroup({
         )}
       </div>
       {!collapsed && (
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId={group.name} isDropDisabled={!editMode}>
-            {(provided) => (
-              <div ref={provided.innerRef} {...provided.droppableProps} className="grid gap-2">
-                {group.bookmarks.map((bookmark, index) => (
-                  <Draggable
-                    key={`${group.name}-${bookmark.name}-${index}`}
-                    draggableId={`${group.name}-${index}`}
-                    index={index}
-                    isDragDisabled={!editMode}
-                  >
-                    {(dragProvided, snapshot) => (
-                      <div
-                        ref={dragProvided.innerRef}
-                        {...dragProvided.draggableProps}
-                        {...dragProvided.dragHandleProps}
-                        style={{
-                          ...dragProvided.draggableProps.style,
-                          opacity: snapshot.isDragging ? 0.8 : 1,
-                        }}
-                      >
-                        <BookmarkCard
-                          bookmark={bookmark}
-                          editMode={editMode}
-                          onDelete={
-                            onDeleteBookmark
-                              ? (name) => onDeleteBookmark(group.name, name)
-                              : undefined
-                          }
-                        />
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+        <Droppable droppableId={group.name} isDropDisabled={!editMode}>
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={`grid gap-2 transition-colors duration-150 ${snapshot.isDraggingOver && editMode ? "bg-[var(--accent-soft)] rounded-[var(--radius-sm)] p-1 -m-1" : ""}`}
+            >
+              {group.bookmarks.map((bookmark, index) => (
+                <Draggable
+                  key={`${group.name}-bm-${index}`}
+                  draggableId={`${group.name}-bm-${index}`}
+                  index={index}
+                  isDragDisabled={!editMode}
+                >
+                  {(dragProvided, dragSnapshot) => (
+                    <div
+                      ref={dragProvided.innerRef}
+                      {...dragProvided.draggableProps}
+                      {...dragProvided.dragHandleProps}
+                      style={dragProvided.draggableProps.style}
+                      className={dragSnapshot.isDragging ? "ring-2 ring-[var(--accent)] rounded-[var(--radius-sm)]" : ""}
+                    >
+                      <BookmarkCard
+                        bookmark={bookmark}
+                        editMode={editMode}
+                        onDelete={
+                          onDeleteBookmark
+                            ? (name) => onDeleteBookmark(group.name, name)
+                            : undefined
+                        }
+                        onEdit={
+                          onEditBookmark
+                            ? () => onEditBookmark(group.name, bookmark)
+                            : undefined
+                        }
+                      />
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
       )}
       {group.groups?.length > 0 && !collapsed && (
         <div className="mt-3 pl-2 border-l-2 border-[var(--border)] flex flex-col gap-3">
@@ -132,8 +133,8 @@ export default function BookmarkGroup({
               editMode={editMode}
               onDeleteBookmark={onDeleteBookmark}
               onAddBookmark={onAddBookmark}
+              onEditBookmark={onEditBookmark}
               onDeleteGroup={onDeleteGroup}
-              onReorderBookmark={onReorderBookmark}
             />
           ))}
         </div>
