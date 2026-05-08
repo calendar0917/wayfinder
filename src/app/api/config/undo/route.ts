@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execFileSync } from "child_process";
+import path from "path";
 import { readConfigSafe, writeConfig, readConfig } from "@/lib/config";
 import { isAuthenticated } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/csrf";
+
+const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), "data");
+const CONFIG_REL = path.relative(process.cwd(), path.join(DATA_DIR, "settings.yaml")) || "data/settings.yaml";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -19,8 +23,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // In development, skip git operations to prevent HMR crashes
+  if (process.env.NODE_ENV === "development") {
+    return NextResponse.json({ error: "Undo not available in development mode", success: false });
+  }
+
   try {
-    const stdout = execFileSync("git", ["log", "--oneline", "-2", "--", "data/settings.yaml"], {
+    const stdout = execFileSync("git", ["log", "--oneline", "-2", "--", CONFIG_REL], {
       cwd: process.cwd(),
       encoding: "utf-8",
     });
@@ -30,12 +39,12 @@ export async function POST(request: NextRequest) {
     }
     const prevHash = lines[1].split(" ")[0];
 
-    execFileSync("git", ["checkout", prevHash, "--", "data/settings.yaml"], {
+    execFileSync("git", ["checkout", prevHash, "--", CONFIG_REL], {
       cwd: process.cwd(),
       stdio: "pipe",
     });
 
-    execFileSync("git", ["add", "data/settings.yaml"], {
+    execFileSync("git", ["add", CONFIG_REL], {
       cwd: process.cwd(),
       stdio: "pipe",
     });

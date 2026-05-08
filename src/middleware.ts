@@ -38,7 +38,15 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Only protect write/AI endpoints — the dashboard is publicly viewable
-  const protectedPaths = ["/api/ai/", "/api/config/mutate", "/api/git", "/api/status-check"];
+  const protectedPaths = [
+    "/api/ai/",
+    "/api/config/mutate",
+    "/api/config/undo",
+    "/api/config/import",
+    "/api/git",
+    "/api/status-check",
+    "/api/docker/status",
+  ];
   const isProtectedPath = protectedPaths.some((p) => pathname.startsWith(p));
   // Also protect /api/config for non-GET methods (PUT)
   const isConfigWrite = pathname === "/api/config" && request.method !== "GET";

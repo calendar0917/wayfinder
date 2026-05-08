@@ -115,3 +115,31 @@ groups:
         container: ''
         statusCheck: false
     groups: []
+  - name: Miniflux
+    icon: ''
+    collapsed: false
+    bookmarks:
+      - name: Miniflux
+        url: http://localhost:8888
+        icon: https://miniflux.app/favicon.ico
+        description: Miniflux RSS 阅读器
+        shortcut: ''
+        tags:
+          - RSS
+          - Docker
+        server: docker
+        container: miniflux-miniflux-1
+        statusCheck: true
+      - name: Miniflux PostgreSQL
+        url: http://localhost:5432
+        icon: https://www.postgresql.org/favicon.ico
+        description: Miniflux 数据库
+        shortcut: ''
+        tags:
+          - PostgreSQL
+          - Docker
+          - 数据库
+        server: docker
+        container: miniflux-db-1
+        statusCheck: false
+    groups: []

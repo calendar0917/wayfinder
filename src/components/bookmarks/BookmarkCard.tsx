@@ -3,6 +3,7 @@
 import type { Bookmark } from "@/types/config";
 import BookmarkIcon from "./BookmarkIcon";
 import type { StatusResult } from "@/hooks/useStatusCheck";
+import type { DockerStatusResult } from "@/hooks/useDockerStatus";
 
 interface BookmarkCardProps {
   bookmark: Bookmark;
@@ -10,6 +11,7 @@ interface BookmarkCardProps {
   onDelete?: (name: string) => void;
   onEdit?: () => void;
   statusResult?: StatusResult;
+  dockerStatus?: DockerStatusResult;
 }
 
 export default function BookmarkCard({
@@ -18,6 +20,7 @@ export default function BookmarkCard({
   onDelete,
   onEdit,
   statusResult,
+  dockerStatus,
 }: BookmarkCardProps) {
   return (
     <a
@@ -47,6 +50,20 @@ export default function BookmarkCard({
               : "Checking..."
           }
         />
+      )}
+      {bookmark.server === "docker" && dockerStatus && (
+        <span
+          className={`inline-flex items-center px-1.5 py-0.5 text-[0.6rem] font-semibold rounded shrink-0 ${
+            dockerStatus.state === "running"
+              ? "bg-green-500/15 text-green-600 dark:text-green-400"
+              : dockerStatus.state === "restarting"
+                ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                : "bg-red-500/15 text-red-600 dark:text-red-400"
+          }`}
+          title={dockerStatus.status}
+        >
+          {dockerStatus.state === "running" ? "●" : dockerStatus.state === "restarting" ? "◑" : "○"}
+        </span>
       )}
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-sm font-medium truncate">{bookmark.name}</span>

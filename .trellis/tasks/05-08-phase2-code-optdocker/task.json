@@ -1,9 +1,9 @@
 {
-  "id": "fix-bugs-crud",
-  "name": "fix-bugs-crud",
-  "title": "Fix critical bugs and complete CRUD features",
+  "id": "phase2-code-optdocker",
+  "name": "phase2-code-optdocker",
+  "title": "Phase 2: Code Quality + Optimistic UI + Docker",
   "description": "",
-  "status": "completed",
+  "status": "planning",
   "dev_type": "fullstack",
   "scope": null,
   "package": null,
@@ -11,11 +11,11 @@
   "creator": "calendar",
   "assignee": "calendar",
   "createdAt": "2026-05-08",
-  "completedAt": "2026-05-08",
+  "completedAt": null,
   "branch": null,
-  "base_branch": "main",
+  "base_branch": "master",
   "worktree_path": null,
-  "current_phase": 3,
+  "current_phase": 0,
   "next_action": [
     {
       "phase": 1,

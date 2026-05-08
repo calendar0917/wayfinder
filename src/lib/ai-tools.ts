@@ -316,6 +316,34 @@ export const toolDefinitions = [
       parameters: { type: "object", properties: {} },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_title",
+      description: "Update the dashboard title",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "New dashboard title" },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_search",
+      description: "Update search engine settings",
+      parameters: {
+        type: "object",
+        properties: {
+          engine: { type: "string", description: "Search engine (google, duckduckgo, bing, custom)" },
+          customUrl: { type: "string", description: "Custom search URL (only used when engine is 'custom')" },
+        },
+      },
+    },
+  },
 ];
 
 export function executeTool(
@@ -700,6 +728,28 @@ export function executeTool(
         result: "Config reloaded from YAML",
         config: readConfig(),
       };
+    }
+
+    case "update_title": {
+      const title = args.title as string;
+      if (!title || !title.trim()) {
+        return { success: false, result: "Title cannot be empty", config };
+      }
+      config.settings.title = title.trim();
+      return { success: true, result: `Title updated to '${config.settings.title}'`, config };
+    }
+
+    case "update_search": {
+      const validEngines = ["google", "duckduckgo", "bing", "custom"];
+      const engine = (args.engine as string) || config.settings.search.engine;
+      if (!validEngines.includes(engine)) {
+        return { success: false, result: `Invalid search engine. Must be one of: ${validEngines.join(", ")}`, config };
+      }
+      config.settings.search.engine = engine;
+      if (args.customUrl !== undefined) {
+        config.settings.search.customUrl = args.customUrl as string;
+      }
+      return { success: true, result: `Search updated: engine=${config.settings.search.engine}`, config };
     }
 
     default:

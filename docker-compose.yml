@@ -6,6 +6,7 @@ services:
       - "3000:3000"
     volumes:
       - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file: .env.local
     environment:
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}

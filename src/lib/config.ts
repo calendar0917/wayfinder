@@ -4,8 +4,11 @@ import yaml from "js-yaml";
 import { configSchema, DEFAULT_CONFIG, CURRENT_CONFIG_VERSION } from "./config-schema";
 import type { AppConfig, SafeConfig, Group } from "@/types/config";
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
+const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), "data");
 const CONFIG_FILE = path.join(DATA_DIR, "settings.yaml");
+
+// Default password "admin" — users should change this after first login
+const DEFAULT_PASSWORD_HASH = "$2a$12$VwhkwP7xdXX0rhIY5l58.OoRGNVQPUlHAM6uBBCaIH0MX9zwbkq.G";
 
 function resolveEnvVar(value: unknown): unknown {
   if (typeof value !== "string") return value;
@@ -52,9 +55,9 @@ export function readConfig(): AppConfig {
       config.version = CURRENT_CONFIG_VERSION;
       writeConfig(config);
     }
-    // Overlay secrets from environment variables (env takes precedence)
+    // Overlay secrets from environment variables (env takes precedence, then fallback to default)
     const apiKey = process.env.HOMEPAGE_API_KEY || config.settings.apiKey;
-    const passwordHash = process.env.HOMEPAGE_PASSWORD_HASH || config.settings.passwordHash;
+    const passwordHash = process.env.HOMEPAGE_PASSWORD_HASH || config.settings.passwordHash || DEFAULT_PASSWORD_HASH;
     const apiBase = process.env.HOMEPAGE_API_BASE || config.settings.apiBase;
     const aiModel = process.env.HOMEPAGE_AI_MODEL || config.settings.aiModel;
     config.settings.apiKey = apiKey;

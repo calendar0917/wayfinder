@@ -1,13 +1,19 @@
 import { execFileSync } from "child_process";
 import path from "path";
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
+const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), "data");
 
-export function gitCommit(message: string): void {
+// In development, git commits trigger Next.js HMR crashes.
+// Defer commits to a background process or skip them entirely.
+const SKIP_GIT_COMMIT = process.env.NODE_ENV === "development";
+
+let commitQueue: string[] = [];
+
+function doGitCommit(messages: string[]): void {
   try {
     execFileSync("git", ["rev-parse", "--git-dir"], { stdio: "pipe" });
   } catch {
-    return; // not a git repo — skip commit
+    return;
   }
   try {
     const status = execFileSync("git", ["-C", DATA_DIR, "status", "--porcelain"], {
@@ -15,12 +21,35 @@ export function gitCommit(message: string): void {
     });
     if (!status.trim()) return;
     execFileSync("git", ["-C", DATA_DIR, "add", "."], { stdio: "pipe" });
-    execFileSync("git", ["-C", DATA_DIR, "commit", "-m", message], {
+    const msg = messages.length === 1 ? messages[0] : `batch: ${messages.length} edits`;
+    execFileSync("git", ["-C", DATA_DIR, "commit", "-m", msg], {
       stdio: "pipe",
     });
   } catch {
     // best-effort commit
   }
+}
+
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function gitCommit(message: string): void {
+  if (SKIP_GIT_COMMIT) return;
+  commitQueue.push(message);
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = setTimeout(() => {
+    const batch = commitQueue.slice();
+    commitQueue = [];
+    flushTimer = null;
+    doGitCommit(batch);
+  }, 3000);
+}
+
+export function flushGitCommits(): void {
+  if (commitQueue.length === 0) return;
+  if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+  const batch = commitQueue.slice();
+  commitQueue = [];
+  doGitCommit(batch);
 }
 
 export function gitLog(limit = 20): Array<{

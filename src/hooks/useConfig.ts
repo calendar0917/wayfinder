@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { SafeConfig } from "@/types/config";
 
 type Theme = "auto" | "light" | "dark";
@@ -16,6 +16,7 @@ export function useConfig() {
   const [config, setConfig] = useState<SafeConfig | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const initialLoadDone = useRef(false);
 
   const applyTheme = useCallback((t: Theme) => {
     document.documentElement.setAttribute("data-theme", resolveTheme(t));
@@ -40,6 +41,8 @@ export function useConfig() {
   }, [applyTheme]);
 
   useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
     fetchConfig();
   }, [fetchConfig]);
 

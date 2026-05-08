@@ -5,6 +5,7 @@ import type { Bookmark } from "@/types/config";
 import WidgetRow from "@/components/layout/WidgetRow";
 import BookmarkGrid from "@/components/bookmarks/BookmarkGrid";
 import BookmarkEditModal from "@/components/bookmarks/BookmarkEditModal";
+import AddGroupModal from "@/components/bookmarks/AddGroupModal";
 import AISidePanel from "@/components/ai/AISidePanel";
 import CommandPalette from "@/components/command-palette/CommandPalette";
 import EditModeToggle from "@/components/editing/EditModeToggle";
@@ -14,9 +15,113 @@ import { useConfig } from "@/hooks/useConfig";
 import { useMutate } from "@/hooks/useMutate";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useStatusCheck } from "@/hooks/useStatusCheck";
-import type { Group } from "@/types/config";
+import { useDockerStatus } from "@/hooks/useDockerStatus";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import type { Group, SafeConfig } from "@/types/config";
 
 type Theme = "auto" | "light" | "dark";
+
+function deepClone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function predictConfig(
+  config: SafeConfig,
+  operation: string,
+  args: Record<string, unknown>
+): SafeConfig | null {
+  const next = deepClone(config);
+  try {
+    switch (operation) {
+      case "add_bookmark": {
+        const groupName = (args.group as string) || next.groups[0]?.name;
+        const group = next.groups.find((g) => g.name === groupName);
+        if (!group) return null;
+        if (!group.bookmarks) group.bookmarks = [];
+        group.bookmarks.push({
+          name: args.name as string,
+          url: args.url as string,
+          icon: (args.icon as string) || "",
+          description: (args.description as string) || "",
+          shortcut: "",
+          tags: (args.tags as string[]) || [],
+          server: (args.server as string) || "",
+          container: (args.container as string) || "",
+          statusCheck: (args.statusCheck as boolean) || false,
+        });
+        return next;
+      }
+      case "remove_bookmark": {
+        for (const g of next.groups) {
+          const idx = g.bookmarks?.findIndex((b) => b.name === args.name) ?? -1;
+          if (idx >= 0) { g.bookmarks.splice(idx, 1); return next; }
+        }
+        return null;
+      }
+      case "update_bookmark": {
+        for (const g of next.groups) {
+          const b = g.bookmarks?.find((b) => b.name === args.name);
+          if (b) {
+            if (args.newName) b.name = args.newName as string;
+            if (args.url) b.url = args.url as string;
+            if (args.icon !== undefined) b.icon = args.icon as string;
+            if (args.description !== undefined) b.description = args.description as string;
+            if (args.tags !== undefined) b.tags = args.tags as string[];
+            if (args.statusCheck !== undefined) b.statusCheck = args.statusCheck as boolean;
+            return next;
+          }
+        }
+        return null;
+      }
+      case "add_group": {
+        next.groups.push({
+          name: args.name as string,
+          icon: "",
+          collapsed: false,
+          bookmarks: [],
+          groups: [],
+        });
+        return next;
+      }
+      case "remove_group": {
+        const idx = next.groups.findIndex((g) => g.name === args.name);
+        if (idx >= 0) { next.groups.splice(idx, 1); return next; }
+        return null;
+      }
+      case "rename_group": {
+        const g = next.groups.find((g) => g.name === args.oldName);
+        if (g) { g.name = args.newName as string; return next; }
+        return null;
+      }
+      case "reorder_bookmark": {
+        const group = next.groups.find((g) => g.name === args.group);
+        if (!group?.bookmarks) return null;
+        const from = args.fromIndex as number;
+        const to = args.toIndex as number;
+        const [bm] = group.bookmarks.splice(from, 1);
+        group.bookmarks.splice(to, 0, bm);
+        return next;
+      }
+      case "change_theme": {
+        next.settings.theme = args.theme as Theme;
+        return next;
+      }
+      case "update_title": {
+        next.settings.title = args.title as string;
+        return next;
+      }
+      case "update_search": {
+        if (args.engine) next.settings.search.engine = args.engine as string;
+        if (args.customUrl !== undefined) next.settings.search.customUrl = args.customUrl as string;
+        return next;
+      }
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
 
 function flattenBookmarks(groups: Group[]): Bookmark[] {
   const result: Bookmark[] = [];
@@ -48,13 +153,13 @@ export default function Dashboard() {
 
   // Add group modal
   const [addGroupOpen, setAddGroupOpen] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
 
-  const mutate = useMutate({ setConfig, setAuthenticated, applyTheme, fetchConfig });
+  const { mutate, optimisticMutate } = useMutate({ setConfig, setAuthenticated, applyTheme, fetchConfig });
 
   // Flatten all bookmarks recursively for status checking
   const allBookmarks = config ? flattenBookmarks(config.groups) : [];
   const { statuses } = useStatusCheck(allBookmarks);
+  const { statuses: dockerStatuses } = useDockerStatus(allBookmarks);
 
   useKeyboard(
     { aiOpen, paletteOpen, settingsOpen },
@@ -72,29 +177,38 @@ export default function Dashboard() {
 
   const handleDeleteBookmark = useCallback(
     async (groupName: string, bookmarkName: string) => {
-      await mutate("remove_bookmark", { name: bookmarkName, group: groupName });
+      if (!config) return;
+      const predicted = predictConfig(config, "remove_bookmark", { name: bookmarkName, group: groupName });
+      if (predicted) await optimisticMutate("remove_bookmark", { name: bookmarkName, group: groupName }, predicted);
+      else await mutate("remove_bookmark", { name: bookmarkName, group: groupName });
     },
-    [mutate]
+    [config, mutate, optimisticMutate]
   );
 
   const handleDeleteGroup = useCallback(
     async (groupName: string) => {
-      await mutate("remove_group", { name: groupName });
+      if (!config) return;
+      const predicted = predictConfig(config, "remove_group", { name: groupName });
+      if (predicted) await optimisticMutate("remove_group", { name: groupName }, predicted);
+      else await mutate("remove_group", { name: groupName });
     },
-    [mutate]
+    [config, mutate, optimisticMutate]
   );
 
   const handleReorderBookmark = useCallback(
     async (groupName: string, fromIndex: number, toIndex: number) => {
-      await mutate("reorder_bookmark", { group: groupName, fromIndex, toIndex });
+      if (!config) return;
+      const predicted = predictConfig(config, "reorder_bookmark", { group: groupName, fromIndex, toIndex });
+      if (predicted) await optimisticMutate("reorder_bookmark", { group: groupName, fromIndex, toIndex }, predicted);
+      else await mutate("reorder_bookmark", { group: groupName, fromIndex, toIndex });
     },
-    [mutate]
+    [config, mutate, optimisticMutate]
   );
 
   const handleUndo = useCallback(async () => {
     try {
       const res = await fetch("/api/config/undo", { method: "POST" });
-      if (res.status === 401) { setAuthenticated(false); return; }
+      if (res.status === 401) { setAuthenticated(false); window.location.href = "/login"; return; }
       const data = await res.json();
       if (data.success) fetchConfig();
     } catch { /* ignore */ }
@@ -124,10 +238,10 @@ export default function Dashboard() {
 
   const handleBookmarkModalSave = useCallback(
     async (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean }) => {
-      if (!bookmarkModalGroup) return;
+      if (!bookmarkModalGroup || !config) return;
       setBookmarkModalOpen(false);
       if (bookmarkModalMode === "edit" && bookmarkModalInitial?.name) {
-        await mutate("update_bookmark", {
+        const args = {
           name: bookmarkModalInitial.name,
           group: bookmarkModalGroup,
           newName: data.name !== bookmarkModalInitial.name ? data.name : undefined,
@@ -136,12 +250,18 @@ export default function Dashboard() {
           description: data.description !== bookmarkModalInitial.description ? data.description : undefined,
           tags: JSON.stringify(data.tags) !== JSON.stringify(bookmarkModalInitial.tags) ? data.tags : undefined,
           statusCheck: data.statusCheck !== bookmarkModalInitial.statusCheck ? data.statusCheck : undefined,
-        });
+        };
+        const predicted = predictConfig(config, "update_bookmark", args);
+        if (predicted) await optimisticMutate("update_bookmark", args, predicted);
+        else await mutate("update_bookmark", args);
       } else {
-        await mutate("add_bookmark", { ...data, group: bookmarkModalGroup });
+        const args = { ...data, group: bookmarkModalGroup };
+        const predicted = predictConfig(config, "add_bookmark", args);
+        if (predicted) await optimisticMutate("add_bookmark", args, predicted);
+        else await mutate("add_bookmark", args);
       }
     },
-    [bookmarkModalGroup, bookmarkModalMode, bookmarkModalInitial, mutate]
+    [bookmarkModalGroup, bookmarkModalMode, bookmarkModalInitial, config, mutate, optimisticMutate]
   );
 
   // --- Add group handler ---
@@ -149,53 +269,36 @@ export default function Dashboard() {
     setAddGroupOpen(true);
   }, []);
 
-  const handleAddGroupSubmit = useCallback(async () => {
-    if (!newGroupName.trim()) return;
+  const handleAddGroupSubmit = useCallback(async (name: string) => {
     setAddGroupOpen(false);
-    await mutate("add_group", { name: newGroupName.trim() });
-    setNewGroupName("");
-  }, [newGroupName, mutate]);
+    if (!config) return;
+    const predicted = predictConfig(config, "add_group", { name });
+    if (predicted) await optimisticMutate("add_group", { name }, predicted);
+    else await mutate("add_group", { name });
+  }, [config, mutate, optimisticMutate]);
 
   const handleSettingsSave = useCallback(
     async (mutations: { operation: string; arguments: Record<string, unknown> }[]) => {
       for (const m of mutations) {
-        if (m.operation === "update_title" || m.operation === "update_search") {
-          const current = { ...config! };
-          const settings: Record<string, unknown> = {
-            title: current.settings.title,
-            theme: current.settings.theme,
-            layout: current.settings.layout,
-            search: current.settings.search,
-            apiKey: current.settings.apiKey,
-            apiBase: current.settings.apiBase,
-            aiModel: current.settings.aiModel,
-            passwordHash: current.settings.passwordHash,
-          };
-          if (m.operation === "update_title") settings.title = m.arguments.title;
-          if (m.operation === "update_search") settings.search = m.arguments;
-
-          const res = await fetch("/api/config", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...current, settings }),
-          });
-          if (res.status === 401) { setAuthenticated(false); return; }
-          const data = await res.json();
-          if (data.version) { setConfig(data); applyTheme(data.settings?.theme || "auto"); }
-          continue;
+        if (!config) { await mutate(m.operation, m.arguments); continue; }
+        const predicted = predictConfig(config, m.operation, m.arguments);
+        if (predicted) {
+          const result = await optimisticMutate(m.operation, m.arguments, predicted);
+          if (m.operation === "set_password" && result.success) await fetchConfig();
+        } else {
+          const result = await mutate(m.operation, m.arguments);
+          if (m.operation === "set_password" && result.success) await fetchConfig();
         }
-        const result = await mutate(m.operation, m.arguments);
-        if (m.operation === "set_password" && result.success) await fetchConfig();
       }
     },
-    [config, mutate, applyTheme, fetchConfig, setConfig, setAuthenticated]
+    [config, mutate, optimisticMutate, fetchConfig]
   );
 
   const handleLogout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setAuthenticated(false);
-    fetchConfig();
-  }, [fetchConfig, setAuthenticated]);
+    window.location.href = "/login";
+  }, [setAuthenticated]);
 
   const handleAiChat = useCallback(async (message: string): Promise<string> => {
     const res = await fetch("/api/ai/chat", {
@@ -203,7 +306,7 @@ export default function Dashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: [{ role: "user", content: message }] }),
     });
-    if (res.status === 401) { setAuthenticated(false); return "Please login first."; }
+    if (res.status === 401) { setAuthenticated(false); window.location.href = "/login"; return "Please login first."; }
     if (!res.ok) {
       try { const err = await res.json(); return err.error || "AI request failed"; } catch { return "AI request failed"; }
     }
@@ -259,6 +362,7 @@ export default function Dashboard() {
   const currentTheme = (config.settings.theme || "auto") as Theme;
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-[var(--bg)]">
       <header className="sticky top-0 z-10 bg-[var(--bg)] border-b border-[var(--border)]">
         <div className="max-w-screen-xl mx-auto px-6 h-12 flex items-center gap-3">
@@ -337,12 +441,13 @@ export default function Dashboard() {
           onAddGroup={handleAddGroup}
           onReorderBookmark={handleReorderBookmark}
           statuses={statuses}
+          dockerStatuses={dockerStatuses}
         />
       </main>
 
       <AISidePanel open={aiOpen} onClose={() => setAiOpen(false)} onConfigUpdate={fetchConfig} authenticated={authenticated} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} groups={config.groups} searchEngine={config.settings.search.engine} customUrl={config.settings.search.customUrl} authenticated={authenticated} onAiChat={handleAiChat} />
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={config.settings} onSave={handleSettingsSave} onLogout={handleLogout} authenticated={authenticated} />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={config.settings} onSave={handleSettingsSave} onLogout={canEdit && authenticated ? handleLogout : undefined} authenticated={authenticated} />
 
       {/* Bookmark add/edit modal */}
       <BookmarkEditModal
@@ -353,35 +458,9 @@ export default function Dashboard() {
         title={bookmarkModalMode === "edit" ? "Edit Bookmark" : `Add Bookmark to ${bookmarkModalGroup || ""}`}
       />
 
-      {/* Add group simple modal */}
-      {addGroupOpen && (
-        <>
-          <div className="fixed inset-0 bg-[rgba(var(--bg-rgb),0.6)] backdrop-blur-[4px)] z-[200] animate-[fadeIn_0.15s_ease]" onClick={() => setAddGroupOpen(false)} />
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <div className="w-full max-w-[360px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] animate-[modalIn_0.2s_cubic-bezier(0.16,1,0.3,1)]" onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-3 border-b border-[var(--border)]">
-                <h3 className="text-sm font-semibold text-[var(--text)]">Add Group</h3>
-              </div>
-              <form
-                onSubmit={(e) => { e.preventDefault(); handleAddGroupSubmit(); }}
-                className="p-5 flex flex-col gap-3"
-              >
-                <input
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="Group name"
-                  className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
-                  autoFocus
-                />
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setAddGroupOpen(false)} className="px-4 py-2 bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm font-medium cursor-pointer hover:bg-[var(--surface-hover)]">Cancel</button>
-                  <button type="submit" disabled={!newGroupName.trim()} className="px-4 py-2 bg-[var(--accent)] text-white border-none rounded-[var(--radius-sm)] text-sm font-semibold cursor-pointer hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed">Create</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Add group modal */}
+      <AddGroupModal open={addGroupOpen} onClose={() => setAddGroupOpen(false)} onSubmit={handleAddGroupSubmit} />
     </div>
+    </ErrorBoundary>
   );
 }

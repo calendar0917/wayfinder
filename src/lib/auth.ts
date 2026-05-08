@@ -65,7 +65,7 @@ export async function clearAuthCookie(): Promise<void> {
 export async function isAuthenticated(
   passwordHash: string
 ): Promise<boolean> {
-  if (!passwordHash) return true; // no password set = auth disabled
+  if (!passwordHash) return true; // only reachable if password explicitly cleared
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return false;

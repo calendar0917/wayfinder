@@ -1,0 +1,8 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": "src/lib/ai-tools.ts", "reason": "tool system — add update_title/update_search tools"}
+{"file": "src/hooks/useMutate.ts", "reason": "mutation hook — refactor for optimistic updates"}
+{"file": "src/components/layout/Dashboard.tsx", "reason": "main component — extract AddGroupModal, fix handleSettingsSave"}
+{"file": "src/components/bookmarks/BookmarkCard.tsx", "reason": "add Docker status badge"}
+{"file": "src/types/config.ts", "reason": "type definitions for Docker status"}
