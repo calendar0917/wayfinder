@@ -47,41 +47,48 @@ export function BookmarkCard({
 
   if (editMode && editing) {
     return (
-      <div className="flex flex-col gap-2 py-2.5 px-3 bg-card border border-accent rounded-lg">
-        <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
-        <input value={editUrl} onChange={(e) => setEditUrl(e.target.value)} placeholder="URL" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
-        <input value={editIcon} onChange={(e) => setEditIcon(e.target.value)} placeholder="Icon URL" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
-        <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="Description" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
-        <div className="flex gap-1.5">
-          <button onClick={handleSave} className="bg-accent text-white rounded px-3 py-1 text-[0.8rem] cursor-pointer">Save</button>
-          <button onClick={() => setEditing(false)} className="bg-bg-secondary text-text border border-border rounded px-3 py-1 text-[0.8rem] cursor-pointer">Cancel</button>
+      <div className="flex flex-col gap-2 py-2.5 px-3 bg-surface border border-accent rounded-lg animate-[scaleIn_0.15s_ease]">
+        <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className="w-full py-1.5 px-2.5 bg-surface-alt border border-border rounded-lg text-[0.85rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]" />
+        <input value={editUrl} onChange={(e) => setEditUrl(e.target.value)} placeholder="URL" className="w-full py-1.5 px-2.5 bg-surface-alt border border-border rounded-lg text-[0.85rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]" />
+        <input value={editIcon} onChange={(e) => setEditIcon(e.target.value)} placeholder="Icon URL" className="w-full py-1.5 px-2.5 bg-surface-alt border border-border rounded-lg text-[0.85rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]" />
+        <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="Description" className="w-full py-1.5 px-2.5 bg-surface-alt border border-border rounded-lg text-[0.85rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]" />
+        <div className="flex gap-2">
+          <button onClick={handleSave} className="bg-accent text-white rounded-lg px-3 py-1.5 text-[0.8rem] font-medium cursor-pointer transition-all duration-150 hover:bg-accent-hover hover:-translate-y-px hover:shadow-accent">Save</button>
+          <button onClick={() => setEditing(false)} className="bg-surface text-text border border-border rounded-lg px-3 py-1.5 text-[0.8rem] font-medium cursor-pointer transition-all duration-150 hover:bg-surface-hover">Cancel</button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className={`flex items-center gap-2.5 py-2 px-3 bg-card border border-border rounded-lg transition-colors duration-150 ${!editMode ? 'hover:bg-card-hover' : ''}`}>
-      {editMode ? (
-        <div className="flex items-center gap-2 flex-1">
-          <BookmarkIcon icon={bookmark.icon} />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">{bookmark.name}</div>
-            {bookmark.description && <div className="text-xs text-text-secondary truncate">{bookmark.description}</div>}
-          </div>
-          <button onClick={() => setEditing(true)} className="bg-accent text-white rounded py-0.5 px-2 text-xs cursor-pointer">Edit</button>
-          <button onClick={deleteBookmark} className="bg-red-600 text-white rounded py-0.5 px-2 text-xs cursor-pointer">Delete</button>
+  if (editMode) {
+    return (
+      <div className="flex items-center gap-2.5 py-2 px-3 bg-surface border border-border rounded-lg transition-all duration-150 hover:border-border-hover">
+        <BookmarkIcon icon={bookmark.icon} />
+        <div className="flex-1 min-w-0">
+          <div className="text-[0.875rem] font-medium truncate">{bookmark.name}</div>
+          {bookmark.description && <div className="text-[0.75rem] text-text-secondary truncate">{bookmark.description}</div>}
         </div>
-      ) : (
-        <a href={bookmark.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 flex-1 min-w-0">
-          <BookmarkIcon icon={bookmark.icon} />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">{bookmark.name}</div>
-            {bookmark.description && <div className="text-xs text-text-secondary truncate">{bookmark.description}</div>}
-          </div>
-          {bookmark.shortcut && <kbd className="text-[0.7rem] py-px px-1 bg-bg-secondary border border-border rounded-sm text-text-secondary">{bookmark.shortcut}</kbd>}
-        </a>
+        <button onClick={() => setEditing(true)} className="bg-accent-soft text-accent rounded-lg py-1 px-2.5 text-[0.75rem] font-medium cursor-pointer transition-all duration-150 hover:bg-accent-soft-hover">Edit</button>
+        <button onClick={deleteBookmark} className="bg-error-soft text-error rounded-lg py-1 px-2.5 text-[0.75rem] font-medium cursor-pointer transition-all duration-150 hover:bg-error-soft">Delete</button>
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={bookmark.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2.5 py-2 px-3 bg-surface border border-border rounded-lg transition-all duration-150 hover:bg-surface-hover hover:border-border-hover hover:shadow-sm group"
+    >
+      <BookmarkIcon icon={bookmark.icon} />
+      <div className="flex-1 min-w-0">
+        <div className="text-[0.875rem] font-medium truncate">{bookmark.name}</div>
+        {bookmark.description && <div className="text-[0.75rem] text-text-secondary truncate">{bookmark.description}</div>}
+      </div>
+      {bookmark.shortcut && (
+        <kbd className="text-[0.7rem] py-0.5 px-1.5 bg-surface-alt border border-border rounded-md text-text-tertiary font-mono">{bookmark.shortcut}</kbd>
       )}
-    </div>
+    </a>
   );
 }

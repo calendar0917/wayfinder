@@ -18,7 +18,16 @@ export function ClockWidget({ config }: ClockWidgetProps) {
     return () => clearInterval(timer);
   }, []);
 
-  if (!now) return <WidgetCard>...</WidgetCard>;
+  if (!now) {
+    return (
+      <WidgetCard>
+        <div className="flex flex-col gap-1 animate-pulse">
+          <div className="h-3 bg-surface-alt rounded w-3/4" />
+          <div className="h-6 bg-surface-alt rounded w-1/2" />
+        </div>
+      </WidgetCard>
+    );
+  }
 
   const dateOpts: Intl.DateTimeFormatOptions = {
     dateStyle: (format.dateStyle as Intl.DateTimeFormatOptions["dateStyle"]) || "full",
@@ -29,11 +38,13 @@ export function ClockWidget({ config }: ClockWidgetProps) {
 
   return (
     <WidgetCard>
-      <div className="text-sm text-text-secondary">
-        {now.toLocaleDateString(locale, dateOpts)}
-      </div>
-      <div className="text-2xl font-semibold">
-        {now.toLocaleTimeString(locale, timeOpts)}
+      <div className="flex flex-col gap-0.5">
+        <div className="text-[0.875rem] text-text-secondary">
+          {now.toLocaleDateString(locale, dateOpts)}
+        </div>
+        <div className="text-[1.75rem] font-bold tracking-tight text-text leading-tight">
+          {now.toLocaleTimeString(locale, timeOpts)}
+        </div>
       </div>
     </WidgetCard>
   );

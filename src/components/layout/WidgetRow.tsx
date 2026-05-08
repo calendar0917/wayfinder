@@ -63,18 +63,26 @@ export function WidgetRenderer({ widget, index, editMode, onConfigChange }: Widg
   if (!editMode) return widgetEl;
 
   return (
-    <div className="relative">
+    <div className="relative group/edit">
       {widgetEl}
       <button
         onClick={() => removeWidget(index, onConfigChange)}
         title="Remove widget"
-        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white border-0 text-[0.65rem] cursor-pointer flex items-center justify-center leading-none"
+        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white border-2 border-surface text-[0.65rem] cursor-pointer flex items-center justify-center leading-none opacity-0 group-hover/edit:opacity-100 transition-opacity duration-150 hover:scale-110"
       >
-        x
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
   );
 }
+
+const widgetTypes = [
+  { value: "datetime", label: "Clock", icon: "🕐" },
+  { value: "greeting", label: "Greeting", icon: "👋" },
+  { value: "weather", label: "Weather", icon: "🌤" },
+  { value: "resources", label: "System", icon: "📊" },
+  { value: "logo", label: "Logo", icon: "🖼" },
+] as const;
 
 function AddWidgetButton({ onConfigChange }: { onConfigChange: () => void }) {
   const handleAdd = async (type: string) => {
@@ -88,7 +96,7 @@ function AddWidgetButton({ onConfigChange }: { onConfigChange: () => void }) {
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="bg-transparent border border-dashed border-border rounded-lg px-4 py-2.5 cursor-pointer text-sm text-text-secondary"
+        className="bg-transparent border border-dashed border-border rounded-xl px-4 py-2.5 cursor-pointer text-[0.875rem] text-text-secondary transition-colors duration-150 hover:border-accent hover:text-accent hover:bg-accent-soft"
       >
         + Add Widget
       </button>
@@ -96,19 +104,19 @@ function AddWidgetButton({ onConfigChange }: { onConfigChange: () => void }) {
   }
 
   return (
-    <div className="flex gap-2 items-center">
-      {(["datetime", "greeting", "weather", "resources", "logo"] as const).map((type) => (
+    <div className="flex gap-2 items-center animate-[fadeIn_0.15s_ease]">
+      {widgetTypes.map((t) => (
         <button
-          key={type}
-          onClick={() => { handleAdd(type); setExpanded(false); }}
-          className="bg-card border border-border rounded-md px-3 py-1.5 cursor-pointer text-[0.8rem] text-text"
+          key={t.value}
+          onClick={() => { handleAdd(t.value); setExpanded(false); }}
+          className="bg-surface border border-border rounded-lg px-3 py-1.5 cursor-pointer text-[0.8rem] text-text transition-all duration-150 hover:bg-surface-hover hover:border-border-hover"
         >
-          {type}
+          {t.label}
         </button>
       ))}
       <button
         onClick={() => setExpanded(false)}
-        className="bg-transparent border border-border rounded-md px-2.5 py-1.5 cursor-pointer text-[0.8rem] text-text-secondary"
+        className="bg-transparent border border-border rounded-lg px-2.5 py-1.5 cursor-pointer text-[0.8rem] text-text-secondary transition-all duration-150 hover:bg-surface-hover"
       >
         Cancel
       </button>

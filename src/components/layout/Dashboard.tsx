@@ -26,6 +26,7 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
   const [showLogin, setShowLogin] = useState(false);
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [aiMessages, setAiMessages] = useState<
     Array<{ role: string; content: string }>
   >([]);
@@ -70,7 +71,6 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
     if (res.ok) {
       setConfig(await res.json());
     }
-    // Re-check auth status (may have changed if password was set/cleared)
     fetch("/api/auth/status")
       .then((r) => r.json())
       .then((data) => {
@@ -82,11 +82,13 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
 
   const handleLogin = async () => {
     setLoginError("");
+    setLoginLoading(true);
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: loginPassword }),
     });
+    setLoginLoading(false);
     const data = await res.json();
     if (data.success) {
       setAuthenticated(true);
@@ -214,7 +216,7 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
         setAiLoading(false);
       }
     },
-    [refreshConfig, authRequired, authenticated]
+    [refreshConfig]
   );
 
   function updateLastAssistant(content: string) {
@@ -227,63 +229,74 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-bg">
-      <header className="flex justify-between items-center py-4 px-6 border-b border-border">
-        <h1 className="text-xl font-semibold">
-          {config.settings.title}
-        </h1>
-        <div className="flex gap-2 items-center">
-          <button
-            onClick={() => setPaletteOpen(true)}
-            title="Search (Cmd+K)"
-            className="bg-bg-secondary border border-border rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium text-text-secondary transition-all duration-150"
-          >
-            Search
-          </button>
-          <button
-            onClick={() => {
-              if (requireAuth()) return;
-              setAiPanelOpen((v) => !v);
-            }}
-            title="AI Assistant"
-            className={`border rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium transition-all duration-150 ${
-              aiPanelOpen
-                ? 'bg-accent text-white border-accent'
-                : 'bg-bg-secondary text-text-secondary border-border'
-            }`}
-          >
-            AI
-          </button>
-          <EditModeToggle
-            enabled={editMode}
-            onToggle={(v) => {
-              if (v && requireAuth()) return;
-              setEditMode(v);
-            }}
-          />
-          <ThemeToggle theme={config.settings.theme} onChange={refreshConfig} />
-          {editMode && (
+      <header className="sticky top-0 z-10 bg-bg/80 backdrop-blur-sm border-b border-border">
+        <div className="flex justify-between items-center py-3 px-6 max-w-screen-xl mx-auto">
+          <h1 className="text-[1.125rem] font-bold tracking-tight">
+            {config.settings.title}
+          </h1>
+          <div className="flex gap-1.5 items-center">
             <button
-              onClick={() => setSettingsOpen(true)}
-              title="Settings"
-              className="bg-bg-secondary border border-border rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium text-text-secondary transition-all duration-150"
+              onClick={() => setPaletteOpen(true)}
+              title="Search (Cmd+K)"
+              className="inline-flex items-center gap-1.5 bg-surface-alt border border-border rounded-lg py-1.5 px-3 cursor-pointer text-[0.8rem] font-medium text-text-secondary transition-all duration-150 hover:bg-surface-hover hover:border-border-hover"
             >
-              Settings
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <span className="max-sm:hidden">Search</span>
             </button>
-          )}
-          {authRequired && !authenticated && (
-            <button onClick={() => setShowLogin(true)} className="bg-accent text-white rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium">
-              Login
+            <button
+              onClick={() => {
+                if (requireAuth()) return;
+                setAiPanelOpen((v) => !v);
+              }}
+              title="AI Assistant"
+              className={`inline-flex items-center gap-1.5 rounded-lg py-1.5 px-3 cursor-pointer text-[0.8rem] font-medium transition-all duration-150 ${
+                aiPanelOpen
+                  ? 'bg-accent-soft text-accent border border-accent'
+                  : 'bg-surface-alt text-text-secondary border border-border hover:bg-surface-hover hover:border-border-hover'
+              }`}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/>
+              </svg>
+              <span className="max-sm:hidden">AI</span>
             </button>
-          )}
-          {authRequired && authenticated && (
-            <button onClick={handleLogout} className="bg-bg-secondary border border-border rounded-md py-1 px-3 cursor-pointer text-[0.8rem] font-medium text-text-secondary transition-all duration-150">
-              Logout
-            </button>
-          )}
+            <EditModeToggle
+              enabled={editMode}
+              onToggle={(v) => {
+                if (v && requireAuth()) return;
+                setEditMode(v);
+              }}
+            />
+            <ThemeToggle theme={config.settings.theme} onChange={refreshConfig} />
+            {editMode && (
+              <button
+                onClick={() => setSettingsOpen(true)}
+                title="Settings"
+                className="inline-flex items-center gap-1.5 bg-surface-alt border border-border rounded-lg py-1.5 px-3 cursor-pointer text-[0.8rem] font-medium text-text-secondary transition-all duration-150 hover:bg-surface-hover hover:border-border-hover"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                <span className="max-sm:hidden">Settings</span>
+              </button>
+            )}
+            {authRequired && !authenticated && (
+              <button onClick={() => setShowLogin(true)} className="bg-accent text-white rounded-lg py-1.5 px-3 cursor-pointer text-[0.8rem] font-medium transition-all duration-150 hover:bg-accent-hover hover:-translate-y-px hover:shadow-accent">
+                Login
+              </button>
+            )}
+            {authRequired && authenticated && (
+              <button onClick={handleLogout} className="bg-surface-alt text-text-secondary border border-border rounded-lg py-1.5 px-3 cursor-pointer text-[0.8rem] font-medium transition-all duration-150 hover:bg-surface-hover hover:border-border-hover">
+                Logout
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="p-6 max-w-screen-xl mx-auto">
+      <main className="p-6 max-w-screen-xl mx-auto animate-[fadeInUp_0.3s_cubic-bezier(0.16,1,0.3,1)]">
         <WidgetRow widgets={config.widgets} editMode={editMode} onConfigChange={refreshConfig} />
         <BookmarkGrid
           groups={config.groups}
@@ -325,7 +338,6 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
           onClose={() => setSettingsOpen(false)}
           onConfigChange={() => {
             refreshConfig();
-            // Re-check auth status in case password was set
             fetch("/api/auth/status")
               .then((r) => r.json())
               .then((data) => {
@@ -338,12 +350,12 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
       )}
 
       {showLogin && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[200]" onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false); }}>
+        <div className="fixed inset-0 bg-black/30 flex justify-center items-center z-[200] animate-[fadeIn_0.15s_ease]" onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false); }}>
           <form
             onSubmit={(e) => { e.preventDefault(); handleLogin(); }}
-            className="bg-card border border-border rounded-xl p-6 w-[300px] flex flex-col gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+            className="bg-surface border border-border rounded-2xl p-6 w-[320px] flex flex-col gap-4 shadow-lg animate-[modalIn_0.2s_cubic-bezier(0.16,1,0.3,1)]"
           >
-            <h2 className="text-base font-semibold m-0 mb-3 text-center">
+            <h2 className="text-[1rem] font-semibold m-0 text-center">
               Login
             </h2>
             <input
@@ -352,16 +364,18 @@ export function Dashboard({ config: initialConfig }: DashboardProps) {
               onChange={(e) => setLoginPassword(e.target.value)}
               placeholder="Password"
               autoFocus
-              className="w-full py-2 px-2.5 bg-bg-secondary border border-border rounded-md text-[0.85rem] text-text outline-none"
+              className="w-full py-2.5 px-3 bg-surface-alt border border-border rounded-lg text-[0.875rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]"
             />
             {loginError && (
-              <div className="text-red-500 text-[0.8rem] mb-2">
+              <div className="text-error text-[0.8rem] bg-error-soft rounded-lg py-1.5 px-2.5">
                 {loginError}
               </div>
             )}
             <div className="flex gap-2">
-              <button type="submit" className="bg-accent text-white rounded-md py-1.5 px-3.5 cursor-pointer text-[0.85rem] font-medium flex-1">Login</button>
-              <button type="button" onClick={() => { setShowLogin(false); setLoginError(""); }} className="bg-bg-secondary text-text border border-border rounded-md py-1.5 px-3.5 cursor-pointer text-[0.85rem] flex-1">
+              <button type="submit" disabled={loginLoading} className="bg-accent text-white rounded-lg py-2 px-3.5 cursor-pointer text-[0.85rem] font-medium flex-1 transition-all duration-150 hover:bg-accent-hover hover:-translate-y-px hover:shadow-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
+                {loginLoading ? "Logging in..." : "Login"}
+              </button>
+              <button type="button" onClick={() => { setShowLogin(false); setLoginError(""); }} className="bg-surface text-text border border-border rounded-lg py-2 px-3.5 cursor-pointer text-[0.85rem] font-medium flex-1 transition-all duration-150 hover:bg-surface-hover">
                 Cancel
               </button>
             </div>

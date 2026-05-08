@@ -44,14 +44,19 @@ export function ResourcesWidget({ config }: ResourcesWidgetProps) {
   if (!data) {
     return (
       <WidgetCard>
-        <div className="text-sm text-text-secondary">Loading...</div>
+        <div className="flex flex-col gap-2 animate-pulse">
+          <div className="h-4 bg-surface-alt rounded w-2/3" />
+          <div className="h-1.5 bg-surface-alt rounded-full w-full" />
+          <div className="h-4 bg-surface-alt rounded w-1/2" />
+          <div className="h-1.5 bg-surface-alt rounded-full w-full" />
+        </div>
       </WidgetCard>
     );
   }
 
   return (
     <WidgetCard>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {showCpu && (
           <StatRow label="CPU" value={`${data.cpu.percent}%`} percent={data.cpu.percent} />
         )}
@@ -64,18 +69,14 @@ export function ResourcesWidget({ config }: ResourcesWidgetProps) {
         )}
         {showUptime && (
           <div className="flex justify-between">
-            <span className="text-sm text-text-secondary">
-              Uptime
-            </span>
-            <span className="text-sm">{data.uptime.formatted}</span>
+            <span className="text-[0.875rem] text-text-secondary">Uptime</span>
+            <span className="text-[0.875rem] font-medium">{data.uptime.formatted}</span>
           </div>
         )}
         {showCpuTemp && data.cpuTemp.celsius !== null && (
           <div className="flex justify-between">
-            <span className="text-sm text-text-secondary">
-              CPU Temp
-            </span>
-            <span className="text-sm">{data.cpuTemp.celsius}°C</span>
+            <span className="text-[0.875rem] text-text-secondary">CPU Temp</span>
+            <span className="text-[0.875rem] font-medium">{data.cpuTemp.celsius}°C</span>
           </div>
         )}
       </div>
@@ -92,19 +93,16 @@ function StatRow({
   value: string;
   percent: number;
 }) {
+  const barColor = percent > 80 ? "bg-error" : percent > 60 ? "bg-warning" : "bg-accent";
   return (
     <div>
-      <div className="flex justify-between mb-1">
-        <span className="text-sm text-text-secondary">
-          {label}
-        </span>
-        <span className="text-sm">{value}</span>
+      <div className="flex justify-between mb-1.5">
+        <span className="text-[0.875rem] text-text-secondary">{label}</span>
+        <span className="text-[0.875rem] font-medium">{value}</span>
       </div>
-      <div className="h-1 bg-border rounded-sm overflow-hidden">
+      <div className="h-1.5 bg-surface-alt rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-sm transition-[width] duration-300 ${
-            percent > 80 ? "bg-red-500" : percent > 60 ? "bg-amber-500" : "bg-accent"
-          }`}
+          className={`h-full rounded-full transition-[width] duration-300 ${barColor}`}
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>

@@ -58,9 +58,9 @@ export function BookmarkGroup({
   };
 
   return (
-    <div>
+    <div className="bg-surface border border-border rounded-2xl p-4">
       {/* Group header */}
-      <div className="flex items-center gap-2 mb-2 select-none">
+      <div className="flex items-center gap-2 mb-3 select-none">
         {group.icon && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -80,38 +80,49 @@ export function BookmarkGroup({
               if (e.key === "Enter") handleRename();
               if (e.key === "Escape") setRenaming(false);
             }}
-            onBlur={handleRename}
+            onBlur={() => { if (newName.trim() && newName !== group.name) handleRename(); else setRenaming(false); }}
             autoFocus
-            className="text-[0.95rem] font-semibold bg-bg-secondary border border-accent rounded py-px px-1.5 text-text outline-none"
+            className="text-[0.9375rem] font-semibold bg-surface-alt border border-accent rounded-lg py-0.5 px-2 text-text outline-none focus:shadow-[0_0_0_3px_var(--accent-soft)]"
           />
         ) : (
           <h2
             onClick={() => setCollapsed(!collapsed)}
-            className="text-[0.95rem] font-semibold cursor-pointer"
+            className="text-[0.9375rem] font-semibold cursor-pointer hover:text-accent transition-colors duration-150"
           >
             {group.name}
           </h2>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="bg-transparent cursor-pointer text-text-secondary text-[0.7rem] p-0 leading-none"
+          className="bg-transparent cursor-pointer text-text-tertiary p-0.5 hover:text-text-secondary transition-colors duration-150"
         >
-          <span className="inline-block transition-transform duration-150" style={{ transform: collapsed ? "rotate(-90deg)" : "none" }}>
-            v
-          </span>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="transition-transform duration-150"
+            style={{ transform: collapsed ? "rotate(-90deg)" : "none" }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </button>
         {editMode && !renaming && (
-          <div className="flex gap-1 ml-auto">
-            <button onClick={() => setRenaming(true)} title="Rename" className="bg-transparent cursor-pointer text-[0.7rem] text-accent p-0">
+          <div className="flex gap-2 ml-auto">
+            <button onClick={() => setRenaming(true)} title="Rename" className="bg-transparent cursor-pointer text-[0.75rem] text-accent font-medium p-0 hover:text-accent-hover transition-colors duration-150">
               Rename
             </button>
             {confirmDelete ? (
-              <>
-                <button onClick={handleDeleteGroup} className="bg-transparent cursor-pointer text-[0.7rem] text-red-600 p-0">Confirm</button>
-                <button onClick={() => setConfirmDelete(false)} className="bg-transparent cursor-pointer text-[0.7rem] text-accent p-0">Cancel</button>
-              </>
+              <div className="flex gap-1.5 items-center animate-[fadeIn_0.15s_ease]">
+                <button onClick={handleDeleteGroup} className="bg-transparent cursor-pointer text-[0.75rem] text-error font-medium p-0 hover:text-error transition-colors duration-150">Confirm</button>
+                <button onClick={() => setConfirmDelete(false)} className="bg-transparent cursor-pointer text-[0.75rem] text-text-tertiary font-medium p-0 hover:text-text-secondary transition-colors duration-150">Cancel</button>
+              </div>
             ) : (
-              <button onClick={() => setConfirmDelete(true)} title="Delete group" className="bg-transparent cursor-pointer text-[0.7rem] text-red-600 p-0">
+              <button onClick={() => setConfirmDelete(true)} title="Delete group" className="bg-transparent cursor-pointer text-[0.75rem] text-error font-medium p-0 hover:text-error transition-colors duration-150">
                 Delete
               </button>
             )}
@@ -121,7 +132,7 @@ export function BookmarkGroup({
 
       {!collapsed && (
         <>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             {group.bookmarks?.map((bookmark, i) => (
               <BookmarkCard
                 key={`${group.name}-${bookmark.name}-${i}`}
@@ -136,31 +147,31 @@ export function BookmarkGroup({
           {editMode && !showAdd && (
             <button
               onClick={() => setShowAdd(true)}
-              className="mt-1 bg-transparent border border-dashed border-border rounded-lg py-1.5 px-3 cursor-pointer text-[0.8rem] text-text-secondary w-full text-left"
+              className="mt-2 bg-transparent border border-dashed border-border rounded-lg py-1.5 px-3 cursor-pointer text-[0.8rem] text-text-secondary w-full text-left transition-colors duration-150 hover:border-accent hover:text-accent hover:bg-accent-soft"
             >
               + Add Bookmark
             </button>
           )}
           {editMode && showAdd && (
-            <div className="mt-1 py-2.5 px-3 bg-card border border-accent rounded-lg flex flex-col gap-1.5">
-              <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name *" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
-              <input value={addUrl} onChange={(e) => setAddUrl(e.target.value)} placeholder="URL *" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
-              <input value={addIcon} onChange={(e) => setAddIcon(e.target.value)} placeholder="Icon URL" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
-              <input value={addDesc} onChange={(e) => setAddDesc(e.target.value)} placeholder="Description" className="w-full py-1.5 px-2 bg-bg-secondary border border-border rounded text-[0.8rem] text-text outline-none" />
-              <div className="flex gap-1.5">
+            <div className="mt-2 py-2.5 px-3 bg-surface border border-accent rounded-lg flex flex-col gap-2 animate-[scaleIn_0.15s_ease]">
+              <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Name *" className="w-full py-1.5 px-2.5 bg-surface-alt border border-border rounded-lg text-[0.85rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]" />
+              <input value={addUrl} onChange={(e) => setAddUrl(e.target.value)} placeholder="URL *" className="w-full py-1.5 px-2.5 bg-surface-alt border border-border rounded-lg text-[0.85rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]" />
+              <input value={addIcon} onChange={(e) => setAddIcon(e.target.value)} placeholder="Icon URL" className="w-full py-1.5 px-2.5 bg-surface-alt border border-border rounded-lg text-[0.85rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]" />
+              <input value={addDesc} onChange={(e) => setAddDesc(e.target.value)} placeholder="Description" className="w-full py-1.5 px-2.5 bg-surface-alt border border-border rounded-lg text-[0.85rem] text-text outline-none transition-colors duration-150 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)]" />
+              <div className="flex gap-2">
                 <button
                   onClick={handleAddBookmark}
                   disabled={!addName.trim() || !addUrl.trim()}
-                  className={`bg-accent text-white rounded px-3 py-1 text-[0.8rem] cursor-pointer ${(!addName.trim() || !addUrl.trim()) ? 'opacity-40' : ''}`}
+                  className="bg-accent text-white rounded-lg px-3 py-1.5 text-[0.8rem] font-medium cursor-pointer transition-all duration-150 hover:bg-accent-hover hover:-translate-y-px hover:shadow-accent disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
                 >
                   Add
                 </button>
-                <button onClick={() => setShowAdd(false)} className="bg-bg-secondary text-text border border-border rounded px-3 py-1 text-[0.8rem] cursor-pointer">Cancel</button>
+                <button onClick={() => setShowAdd(false)} className="bg-surface text-text border border-border rounded-lg px-3 py-1.5 text-[0.8rem] font-medium cursor-pointer transition-all duration-150 hover:bg-surface-hover">Cancel</button>
               </div>
             </div>
           )}
           {group.groups?.map((sub) => (
-            <div key={sub.name} className="ml-4 mt-2">
+            <div key={sub.name} className="ml-4 mt-3 pl-3 border-l-2 border-border">
               <BookmarkGroup group={sub} editMode={editMode} onConfigChange={onConfigChange} />
             </div>
           ))}
