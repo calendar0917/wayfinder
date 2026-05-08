@@ -3,11 +3,27 @@
 import { useState, useEffect, useRef } from "react";
 import { getFaviconUrl } from "@/lib/favicon";
 
+interface IntegrationFormData {
+  endpoint: string;
+  headersStr: string;
+  fieldsStr: string;
+  display: string;
+  pollInterval: number;
+}
+
 interface BookmarkEditModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean }) => void;
-  initial?: { name?: string; url?: string; icon?: string; description?: string; tags?: string[]; statusCheck?: boolean };
+  onSave: (data: {
+    name: string; url: string; icon: string; description: string; tags: string[];
+    statusCheck?: boolean;
+    integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string }>; display: string; pollInterval: number };
+  }) => void;
+  initial?: {
+    name?: string; url?: string; icon?: string; description?: string; tags?: string[];
+    statusCheck?: boolean;
+    integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string }>; display: string; pollInterval: number };
+  };
   title?: string;
 }
 
@@ -24,6 +40,18 @@ export default function BookmarkEditModal({
   const [description, setDescription] = useState(initial?.description || "");
   const [tagsStr, setTagsStr] = useState((initial?.tags || []).join(", "));
   const [statusCheck, setStatusCheck] = useState(initial?.statusCheck || false);
+  const [showIntegration, setShowIntegration] = useState(!!initial?.integration);
+  const [integration, setIntegration] = useState<IntegrationFormData>({
+    endpoint: initial?.integration?.endpoint || "",
+    headersStr: initial?.integration?.headers
+      ? Object.entries(initial.integration.headers).map(([k, v]) => `${k}: ${v}`).join("\n")
+      : "",
+    fieldsStr: initial?.integration?.fields
+      ? initial.integration.fields.map((f) => f.label ? `${f.path}:${f.label}` : f.path).join(", ")
+      : "",
+    display: initial?.integration?.display || "inline",
+    pollInterval: initial?.integration?.pollInterval || 60,
+  });
   const nameRef = useRef<HTMLInputElement>(null);
   const iconTouchedRef = useRef(false);
 
@@ -36,34 +64,80 @@ export default function BookmarkEditModal({
       setDescription(initial?.description || "");
       setTagsStr((initial?.tags || []).join(", "));
       setStatusCheck(initial?.statusCheck || false);
+      setShowIntegration(!!initial?.integration);
+      setIntegration({
+        endpoint: initial?.integration?.endpoint || "",
+        headersStr: initial?.integration?.headers
+          ? Object.entries(initial.integration.headers).map(([k, v]) => `${k}: ${v}`).join("\n")
+          : "",
+        fieldsStr: initial?.integration?.fields
+          ? initial.integration.fields.map((f) => f.label ? `${f.path}:${f.label}` : f.path).join(", ")
+          : "",
+        display: initial?.integration?.display || "inline",
+        pollInterval: initial?.integration?.pollInterval || 60,
+      });
       setTimeout(() => nameRef.current?.focus(), 50);
     }
   }, [open, initial]);
 
   if (!open) return null;
 
+  function parseIntegration() {
+    if (!showIntegration || !integration.endpoint.trim()) return undefined;
+
+    const headers: Record<string, string> = {};
+    for (const line of integration.headersStr.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const colonIdx = trimmed.indexOf(":");
+      if (colonIdx < 0) continue;
+      const key = trimmed.slice(0, colonIdx).trim();
+      const val = trimmed.slice(colonIdx + 1).trim();
+      if (key) headers[key] = val;
+    }
+
+    const fields: Array<{ path: string; label: string }> = [];
+    for (const part of integration.fieldsStr.split(",")) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const colonIdx = trimmed.indexOf(":");
+      if (colonIdx >= 0) {
+        fields.push({ path: trimmed.slice(0, colonIdx).trim(), label: trimmed.slice(colonIdx + 1).trim() });
+      } else {
+        fields.push({ path: trimmed, label: "" });
+      }
+    }
+
+    if (fields.length === 0) return undefined;
+
+    return {
+      endpoint: integration.endpoint.trim(),
+      headers,
+      fields,
+      display: integration.display,
+      pollInterval: Math.max(5, Math.min(3600, integration.pollInterval)),
+    };
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !url.trim()) return;
-    const tags = tagsStr
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-    onSave({ name: name.trim(), url: url.trim(), icon: icon.trim(), description: description.trim(), tags, statusCheck });
+    const tags = tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
+    onSave({ name: name.trim(), url: url.trim(), icon: icon.trim(), description: description.trim(), tags, statusCheck, integration: parseIntegration() });
   }
 
   return (
     <>
       <div
-        className="fixed inset-0 bg-[rgba(var(--bg-rgb),0.6)] backdrop-blur-[4px] z-[200] animate-[fadeIn_0.15s_ease]"
+        className="fixed inset-0 bg-[rgba(var(--bg-rgb),0.6)] backdrop-blur-[4px)] z-[200] animate-[fadeIn_0.15s_ease]"
         onClick={onClose}
       />
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
         <div
-          className="w-full max-w-[420px] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] animate-[modalIn_0.2s_cubic-bezier(0.16,1,0.3,1)] overflow-hidden"
+          className="w-full max-w-[420px] max-h-[85vh] overflow-y-auto bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] animate-[modalIn_0.2s_cubic-bezier(0.16,1,0.3,1)]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] sticky top-0 bg-[var(--surface)] z-10">
             <h3 className="text-sm font-semibold text-[var(--text)]">{title}</h3>
             <button
               onClick={onClose}
@@ -144,6 +218,78 @@ export default function BookmarkEditModal({
                 Monitor status (HTTP probe)
               </label>
             </div>
+
+            {/* Integration section */}
+            <div className="border-t border-[var(--border)] pt-3 mt-1">
+              <button
+                type="button"
+                onClick={() => setShowIntegration(!showIntegration)}
+                className="flex items-center gap-1.5 text-xs font-medium text-[var(--accent)] cursor-pointer bg-transparent border-none p-0 hover:underline"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showIntegration ? "rotate-90" : ""}`}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+                Live Data Integration
+              </button>
+              {showIntegration && (
+                <div className="mt-2 flex flex-col gap-2.5">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Endpoint URL</label>
+                    <input
+                      value={integration.endpoint}
+                      onChange={(e) => setIntegration((p) => ({ ...p, endpoint: e.target.value }))}
+                      placeholder="http://localhost:8096/Sessions?ActiveWithinMinutes=20"
+                      className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Fields (comma-separated paths, add :label)</label>
+                    <input
+                      value={integration.fieldsStr}
+                      onChange={(e) => setIntegration((p) => ({ ...p, fieldsStr: e.target.value }))}
+                      placeholder="data.playback.item.title:Now Playing, data.playback.item.album:Album"
+                      className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Headers (key: value per line, use $&#123;VAR&#125; for secrets)</label>
+                    <textarea
+                      value={integration.headersStr}
+                      onChange={(e) => setIntegration((p) => ({ ...p, headersStr: e.target.value }))}
+                      placeholder={"X-Api-Key: ${JELLYFIN_API_KEY}"}
+                      rows={2}
+                      className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)] resize-y"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Display</label>
+                      <select
+                        value={integration.display}
+                        onChange={(e) => setIntegration((p) => ({ ...p, display: e.target.value }))}
+                        className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none"
+                      >
+                        <option value="inline">Inline (replaces description)</option>
+                        <option value="badge">Badge (pill next to name)</option>
+                        <option value="card">Card (expands below)</option>
+                      </select>
+                    </div>
+                    <div className="w-24">
+                      <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Poll (s)</label>
+                      <input
+                        type="number"
+                        min={5}
+                        max={3600}
+                        value={integration.pollInterval}
+                        onChange={(e) => setIntegration((p) => ({ ...p, pollInterval: Number(e.target.value) || 60 }))}
+                        className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2 mt-2">
               <button
                 type="button"

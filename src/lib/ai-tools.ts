@@ -344,6 +344,63 @@ export const toolDefinitions = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "configure_integration",
+      description: "Configure a live data integration on a bookmark. Fetches JSON from an endpoint and displays extracted fields inline, as a badge, or as a card. Header values can reference environment variables with ${VAR_NAME} syntax.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Bookmark name to add integration to" },
+          group: { type: "string", description: "Group name (optional, helps locate bookmark)" },
+          endpoint: { type: "string", description: "URL to fetch JSON data from" },
+          headers: {
+            type: "object",
+            description: "HTTP headers (values can use ${VAR_NAME} for secrets)",
+            additionalProperties: { type: "string" },
+          },
+          fields: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                path: { type: "string", description: "Dot-path to extract, e.g. 'data.playback.item.title'" },
+                label: { type: "string", description: "Optional label prefix" },
+              },
+              required: ["path"],
+            },
+            description: "Fields to extract from the JSON response",
+          },
+          display: {
+            type: "string",
+            enum: ["inline", "badge", "card"],
+            description: "Display mode (default: inline)",
+          },
+          pollInterval: {
+            type: "number",
+            description: "Poll interval in seconds (5-3600, default: 60)",
+          },
+        },
+        required: ["name", "endpoint", "fields"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "remove_integration",
+      description: "Remove the integration from a bookmark",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Bookmark name" },
+          group: { type: "string", description: "Group name (optional)" },
+        },
+        required: ["name"],
+      },
+    },
+  },
 ];
 
 export function executeTool(
@@ -750,6 +807,51 @@ export function executeTool(
         config.settings.search.customUrl = args.customUrl as string;
       }
       return { success: true, result: `Search updated: engine=${config.settings.search.engine}`, config };
+    }
+
+    case "configure_integration": {
+      const found = findBookmark(config.groups, args.name as string, args.group as string | undefined);
+      if (!found) {
+        return { success: false, result: `Bookmark '${args.name}' not found`, config };
+      }
+      try {
+        const parsed = new URL(args.endpoint as string);
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          return { success: false, result: "Only HTTP(S) endpoints allowed", config };
+        }
+      } catch {
+        return { success: false, result: "Invalid endpoint URL", config };
+      }
+      if (!Array.isArray(args.fields) || args.fields.length === 0) {
+        return { success: false, result: "At least one field path is required", config };
+      }
+      found.bookmark.integration = {
+        endpoint: args.endpoint as string,
+        headers: (args.headers as Record<string, string>) || {},
+        fields: (args.fields as Array<{ path: string; label?: string }>).map((f) => ({
+          path: f.path,
+          label: f.label || "",
+        })),
+        display: (args.display as "inline" | "badge" | "card") || "inline",
+        pollInterval: typeof args.pollInterval === "number" ? Math.max(5, Math.min(3600, args.pollInterval)) : 60,
+      };
+      return {
+        success: true,
+        result: `Integration configured on '${args.name}': ${found.bookmark.integration.display} display, ${found.bookmark.integration.fields.length} field(s), polling every ${found.bookmark.integration.pollInterval}s`,
+        config,
+      };
+    }
+
+    case "remove_integration": {
+      const found = findBookmark(config.groups, args.name as string, args.group as string | undefined);
+      if (!found) {
+        return { success: false, result: `Bookmark '${args.name}' not found`, config };
+      }
+      if (!found.bookmark.integration) {
+        return { success: false, result: `Bookmark '${args.name}' has no integration`, config };
+      }
+      found.bookmark.integration = undefined;
+      return { success: true, result: `Integration removed from '${args.name}'`, config };
     }
 
     default:

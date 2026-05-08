@@ -19,6 +19,19 @@ export interface WidgetConfig {
   config: Record<string, unknown>;
 }
 
+export interface IntegrationField {
+  path: string;
+  label: string;
+}
+
+export interface BookmarkIntegration {
+  endpoint: string;
+  headers: Record<string, string>;
+  fields: IntegrationField[];
+  display: "inline" | "badge" | "card";
+  pollInterval: number;
+}
+
 export interface Bookmark {
   name: string;
   url: string;
@@ -29,6 +42,7 @@ export interface Bookmark {
   server: string;
   container: string;
   statusCheck?: boolean;
+  integration?: BookmarkIntegration;
 }
 
 export interface Group {

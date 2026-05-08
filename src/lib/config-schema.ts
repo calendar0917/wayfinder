@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+const integrationFieldSchema = z.object({
+  path: z.string().min(1),
+  label: z.string().optional().default(""),
+});
+
+const integrationSchema = z.object({
+  endpoint: z.string().min(1),
+  headers: z.record(z.string()).optional().default({}),
+  fields: z.array(integrationFieldSchema).min(1),
+  display: z.enum(["inline", "badge", "card"]).optional().default("inline"),
+  pollInterval: z.number().min(5).max(3600).optional().default(60),
+});
+
 const bookmarkSchema = z.object({
   name: z.string().min(1),
   url: z.string().min(1).refine(
@@ -13,6 +26,7 @@ const bookmarkSchema = z.object({
   server: z.string().optional().default(""),
   container: z.string().optional().default(""),
   statusCheck: z.boolean().optional().default(false),
+  integration: integrationSchema.optional(),
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,10 +74,10 @@ export const configSchema = z.object({
   groups: z.array(groupSchema).default([]),
 });
 
-export const CURRENT_CONFIG_VERSION = 2;
+export const CURRENT_CONFIG_VERSION = 3;
 
 export const DEFAULT_CONFIG = {
-  version: 2,
+  version: 3,
   settings: {
     title: "My Dashboard",
     theme: "auto" as const,

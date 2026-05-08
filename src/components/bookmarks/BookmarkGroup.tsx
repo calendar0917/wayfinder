@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import type { Group, Bookmark } from "@/types/config";
 import type { StatusResult } from "@/hooks/useStatusCheck";
 import type { DockerStatusResult } from "@/hooks/useDockerStatus";
+import type { IntegrationResult } from "@/hooks/useIntegration";
 import BookmarkCard from "./BookmarkCard";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 
@@ -16,6 +17,7 @@ interface BookmarkGroupProps {
   onDeleteGroup?: (groupName: string) => void;
   statuses?: Map<string, StatusResult>;
   dockerStatuses?: Record<string, DockerStatusResult>;
+  integrationResults?: Map<string, IntegrationResult>;
 }
 
 export default function BookmarkGroup({
@@ -27,6 +29,7 @@ export default function BookmarkGroup({
   onDeleteGroup,
   statuses,
   dockerStatuses,
+  integrationResults,
 }: BookmarkGroupProps) {
   const [collapsed, setCollapsed] = useState(group.collapsed);
 
@@ -122,6 +125,7 @@ export default function BookmarkGroup({
                         }
                         statusResult={statuses?.get(bookmark.url)}
                         dockerStatus={bookmark.container ? dockerStatuses?.[bookmark.container] : undefined}
+                        integrationResult={bookmark.integration ? integrationResults?.get(bookmark.name) : undefined}
                       />
                     </div>
                   )}
@@ -145,6 +149,7 @@ export default function BookmarkGroup({
               onDeleteGroup={onDeleteGroup}
               statuses={statuses}
               dockerStatuses={dockerStatuses}
+              integrationResults={integrationResults}
             />
           ))}
         </div>

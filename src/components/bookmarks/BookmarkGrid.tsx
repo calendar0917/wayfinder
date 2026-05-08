@@ -3,6 +3,7 @@
 import type { Group, Bookmark } from "@/types/config";
 import type { StatusResult } from "@/hooks/useStatusCheck";
 import type { DockerStatusResult } from "@/hooks/useDockerStatus";
+import type { IntegrationResult } from "@/hooks/useIntegration";
 import BookmarkGroup from "./BookmarkGroup";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 
@@ -18,6 +19,7 @@ interface BookmarkGridProps {
   onReorderBookmark?: (groupName: string, fromIndex: number, toIndex: number) => void;
   statuses?: Map<string, StatusResult>;
   dockerStatuses?: Record<string, DockerStatusResult>;
+  integrationResults?: Map<string, IntegrationResult>;
 }
 
 export default function BookmarkGrid({
@@ -32,6 +34,7 @@ export default function BookmarkGrid({
   onReorderBookmark,
   statuses,
   dockerStatuses,
+  integrationResults,
 }: BookmarkGridProps) {
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
@@ -58,6 +61,7 @@ export default function BookmarkGrid({
             onDeleteGroup={onDeleteGroup}
             statuses={statuses}
             dockerStatuses={dockerStatuses}
+            integrationResults={integrationResults}
           />
         ))}
         {editMode && onAddGroup && (

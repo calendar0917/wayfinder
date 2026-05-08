@@ -46,6 +46,7 @@ export async function middleware(request: NextRequest) {
     "/api/git",
     "/api/status-check",
     "/api/docker/status",
+    "/api/integration/",
   ];
   const isProtectedPath = protectedPaths.some((p) => pathname.startsWith(p));
   // Also protect /api/config for non-GET methods (PUT)

@@ -10,7 +10,7 @@ const CONFIG_FILE = path.join(DATA_DIR, "settings.yaml");
 // Default password "admin" — users should change this after first login
 const DEFAULT_PASSWORD_HASH = "$2a$12$VwhkwP7xdXX0rhIY5l58.OoRGNVQPUlHAM6uBBCaIH0MX9zwbkq.G";
 
-function resolveEnvVar(value: unknown): unknown {
+export function resolveEnvVar(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const match = value.match(/^\$\{(\w+)\}$/);
   if (match) {
@@ -32,6 +32,47 @@ function resolveEnvVars(obj: unknown): unknown {
   return obj;
 }
 
+// Walk raw YAML + config in parallel, restoring ${VAR_NAME} patterns
+// in integration headers so secrets never persist in the config object.
+function restoreIntegrationHeaders(groups: Group[], rawGroups: unknown[]): void {
+  for (let i = 0; i < groups.length && i < rawGroups.length; i++) {
+    const rawGroup = rawGroups[i] as Record<string, unknown> | undefined;
+    const rawBookmarks = (rawGroup?.bookmarks ?? []) as Record<string, unknown>[];
+    for (let j = 0; j < groups[i].bookmarks.length && j < rawBookmarks.length; j++) {
+      const b = groups[i].bookmarks[j];
+      const rawB = rawBookmarks[j];
+      if (b.integration?.headers && rawB?.integration) {
+        const rawIntegration = rawB.integration as Record<string, unknown>;
+        const rawHeaders = (rawIntegration.headers ?? {}) as Record<string, string>;
+        for (const key of Object.keys(b.integration.headers)) {
+          if (rawHeaders[key] !== undefined) {
+            b.integration.headers[key] = rawHeaders[key];
+          }
+        }
+      }
+    }
+    const rawSubGroups = (rawGroup?.groups ?? []) as unknown[];
+    if (groups[i].groups) {
+      restoreIntegrationHeaders(groups[i].groups, rawSubGroups);
+    }
+  }
+}
+
+function maskIntegrationHeaders(groups: Group[]): void {
+  for (const g of groups) {
+    for (const b of g.bookmarks ?? []) {
+      if (b.integration?.headers) {
+        for (const key of Object.keys(b.integration.headers)) {
+          if (b.integration.headers[key]) {
+            b.integration.headers[key] = "***";
+          }
+        }
+      }
+    }
+    if (g.groups) maskIntegrationHeaders(g.groups);
+  }
+}
+
 function ensureDataDir(): void {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -49,6 +90,9 @@ export function readConfig(): AppConfig {
     const raw = yaml.load(fs.readFileSync(CONFIG_FILE, "utf-8"));
     const resolved = resolveEnvVars(raw ?? {});
     const config = configSchema.parse(resolved);
+    // Restore ${VAR_NAME} in integration headers — secrets must stay
+    // as references so writeConfig never persists real values to YAML.
+    restoreIntegrationHeaders(config.groups, (raw as Record<string, unknown>)?.groups as unknown[] ?? []);
     // Run migrations if config is from an older version
     if (config.version < CURRENT_CONFIG_VERSION) {
       migrateConfig(config);
@@ -89,6 +133,7 @@ export function writeConfig(config: AppConfig): void {
 
 export function readConfigSafe(): SafeConfig {
   const config = readConfig();
+  maskIntegrationHeaders(config.groups);
   return {
     ...config,
     settings: {
@@ -112,4 +157,5 @@ function migrateConfig(config: AppConfig): void {
     }
     addStatusCheck(config.groups);
   }
+  // v2 -> v3: integration field is optional, no data mutation needed
 }

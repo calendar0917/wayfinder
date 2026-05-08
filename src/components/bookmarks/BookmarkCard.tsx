@@ -4,6 +4,8 @@ import type { Bookmark } from "@/types/config";
 import BookmarkIcon from "./BookmarkIcon";
 import type { StatusResult } from "@/hooks/useStatusCheck";
 import type { DockerStatusResult } from "@/hooks/useDockerStatus";
+import type { IntegrationResult } from "@/hooks/useIntegration";
+import IntegrationDisplay from "./IntegrationDisplay";
 
 interface BookmarkCardProps {
   bookmark: Bookmark;
@@ -12,6 +14,7 @@ interface BookmarkCardProps {
   onEdit?: () => void;
   statusResult?: StatusResult;
   dockerStatus?: DockerStatusResult;
+  integrationResult?: IntegrationResult;
 }
 
 export default function BookmarkCard({
@@ -21,7 +24,10 @@ export default function BookmarkCard({
   onEdit,
   statusResult,
   dockerStatus,
+  integrationResult,
 }: BookmarkCardProps) {
+  const hasInlineIntegration = bookmark.integration?.display === "inline" && integrationResult && !integrationResult.error;
+
   return (
     <a
       href={editMode ? undefined : bookmark.url}
@@ -66,11 +72,46 @@ export default function BookmarkCard({
         </span>
       )}
       <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-sm font-medium truncate">{bookmark.name}</span>
-        {bookmark.description && (
-          <span className="text-xs text-[var(--text-secondary)] truncate">
-            {bookmark.description}
-          </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-medium truncate">{bookmark.name}</span>
+          {bookmark.integration?.display === "badge" && integrationResult && (
+            <IntegrationDisplay
+              fields={integrationResult.fields}
+              display="badge"
+              loading={integrationResult.loading}
+              error={integrationResult.error}
+            />
+          )}
+        </div>
+        {bookmark.integration?.display === "inline" && integrationResult ? (
+          hasInlineIntegration ? (
+            <IntegrationDisplay
+              fields={integrationResult.fields}
+              display="inline"
+              loading={integrationResult.loading}
+              error={integrationResult.error}
+            />
+          ) : (
+            bookmark.description && (
+              <span className="text-xs text-[var(--text-secondary)] truncate">
+                {bookmark.description}
+              </span>
+            )
+          )
+        ) : (
+          bookmark.description && (
+            <span className="text-xs text-[var(--text-secondary)] truncate">
+              {bookmark.description}
+            </span>
+          )
+        )}
+        {bookmark.integration?.display === "card" && integrationResult && (
+          <IntegrationDisplay
+            fields={integrationResult.fields}
+            display="card"
+            loading={integrationResult.loading}
+            error={integrationResult.error}
+          />
         )}
       </div>
       {bookmark.shortcut && !editMode && (

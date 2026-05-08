@@ -16,6 +16,7 @@ import { useMutate } from "@/hooks/useMutate";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useStatusCheck } from "@/hooks/useStatusCheck";
 import { useDockerStatus } from "@/hooks/useDockerStatus";
+import { useIntegration } from "@/hooks/useIntegration";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import type { Group, SafeConfig } from "@/types/config";
 
@@ -148,6 +149,7 @@ export default function Dashboard() {
   const [bookmarkModalGroup, setBookmarkModalGroup] = useState<string | null>(null);
   const [bookmarkModalInitial, setBookmarkModalInitial] = useState<{
     name?: string; url?: string; icon?: string; description?: string; tags?: string[]; statusCheck?: boolean;
+    integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string }>; display: string; pollInterval: number };
   } | undefined>(undefined);
   const [bookmarkModalMode, setBookmarkModalMode] = useState<"add" | "edit">("add");
 
@@ -160,6 +162,8 @@ export default function Dashboard() {
   const allBookmarks = config ? flattenBookmarks(config.groups) : [];
   const { statuses } = useStatusCheck(allBookmarks);
   const { statuses: dockerStatuses } = useDockerStatus(allBookmarks);
+  const integrationBookmarks = allBookmarks.filter((b) => b.integration).map((b) => ({ key: b.name, config: b.integration! }));
+  const { results: integrationResults } = useIntegration(integrationBookmarks);
 
   useKeyboard(
     { aiOpen, paletteOpen, settingsOpen },
@@ -231,13 +235,20 @@ export default function Dashboard() {
       description: bookmark.description,
       tags: bookmark.tags,
       statusCheck: bookmark.statusCheck,
+      integration: bookmark.integration ? {
+        endpoint: bookmark.integration.endpoint,
+        headers: bookmark.integration.headers,
+        fields: bookmark.integration.fields,
+        display: bookmark.integration.display,
+        pollInterval: bookmark.integration.pollInterval,
+      } : undefined,
     });
     setBookmarkModalMode("edit");
     setBookmarkModalOpen(true);
   }, []);
 
   const handleBookmarkModalSave = useCallback(
-    async (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean }) => {
+    async (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean; integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string }>; display: string; pollInterval: number } }) => {
       if (!bookmarkModalGroup || !config) return;
       setBookmarkModalOpen(false);
       if (bookmarkModalMode === "edit" && bookmarkModalInitial?.name) {
@@ -254,11 +265,49 @@ export default function Dashboard() {
         const predicted = predictConfig(config, "update_bookmark", args);
         if (predicted) await optimisticMutate("update_bookmark", args, predicted);
         else await mutate("update_bookmark", args);
+        // Handle integration changes
+        const hadIntegration = !!bookmarkModalInitial.integration;
+        const hasIntegration = !!data.integration;
+        if (hasIntegration && !hadIntegration) {
+          await mutate("configure_integration", {
+            name: data.name,
+            group: bookmarkModalGroup,
+            endpoint: data.integration!.endpoint,
+            headers: data.integration!.headers,
+            fields: data.integration!.fields,
+            display: data.integration!.display,
+            pollInterval: data.integration!.pollInterval,
+          });
+        } else if (hasIntegration && hadIntegration) {
+          await mutate("configure_integration", {
+            name: data.name,
+            group: bookmarkModalGroup,
+            endpoint: data.integration!.endpoint,
+            headers: data.integration!.headers,
+            fields: data.integration!.fields,
+            display: data.integration!.display,
+            pollInterval: data.integration!.pollInterval,
+          });
+        } else if (!hasIntegration && hadIntegration) {
+          await mutate("remove_integration", { name: data.name, group: bookmarkModalGroup });
+        }
       } else {
         const args = { ...data, group: bookmarkModalGroup };
         const predicted = predictConfig(config, "add_bookmark", args);
         if (predicted) await optimisticMutate("add_bookmark", args, predicted);
         else await mutate("add_bookmark", args);
+        // Configure integration after bookmark is added
+        if (data.integration) {
+          await mutate("configure_integration", {
+            name: data.name,
+            group: bookmarkModalGroup,
+            endpoint: data.integration.endpoint,
+            headers: data.integration.headers,
+            fields: data.integration.fields,
+            display: data.integration.display,
+            pollInterval: data.integration.pollInterval,
+          });
+        }
       }
     },
     [bookmarkModalGroup, bookmarkModalMode, bookmarkModalInitial, config, mutate, optimisticMutate]
@@ -442,6 +491,7 @@ export default function Dashboard() {
           onReorderBookmark={handleReorderBookmark}
           statuses={statuses}
           dockerStatuses={dockerStatuses}
+          integrationResults={integrationResults}
         />
       </main>
 
