@@ -192,6 +192,7 @@ export default function Dashboard() {
   const [aiOpen, setAiOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aiInitialMessage, setAiInitialMessage] = useState("");
 
   // Bookmark modal state
   const [bookmarkModalOpen, setBookmarkModalOpen] = useState(false);
@@ -398,38 +399,10 @@ export default function Dashboard() {
     window.location.href = "/login";
   }, [setAuthenticated]);
 
-  const handleAiChat = useCallback(async (message: string): Promise<string> => {
-    const res = await fetch("/api/ai/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ role: "user", content: message }] }),
-    });
-    if (res.status === 401) { setAuthenticated(false); window.location.href = "/login"; return "Please login first."; }
-    if (!res.ok) {
-      try { const err = await res.json(); return err.error || "AI request failed"; } catch { return "AI request failed"; }
-    }
-    const reader = res.body?.getReader();
-    if (!reader) return "No response stream";
-
-    let result = "";
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        try {
-          const event = JSON.parse(line.slice(6));
-          if (event.type === "text" && event.content) result += event.content;
-        } catch { /* skip */ }
-      }
-    }
-    return result || "No response.";
-  }, [setAuthenticated]);
+  const handleOpenAI = useCallback((message: string) => {
+    setAiInitialMessage(message);
+    setAiOpen(true);
+  }, []);
 
   if (!config) {
     return (
@@ -544,8 +517,8 @@ export default function Dashboard() {
         />
       </main>
 
-      <AISidePanel open={aiOpen} onClose={() => setAiOpen(false)} onConfigUpdate={fetchConfig} authenticated={authenticated} />
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} groups={config.groups} searchEngine={config.settings.search.engine} customUrl={config.settings.search.customUrl} authenticated={authenticated} onAiChat={handleAiChat} />
+      <AISidePanel open={aiOpen} onClose={() => { setAiOpen(false); setAiInitialMessage(""); }} onConfigUpdate={fetchConfig} authenticated={authenticated} initialMessage={aiInitialMessage} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} groups={config.groups} searchEngine={config.settings.search.engine} customUrl={config.settings.search.customUrl} authenticated={authenticated} onOpenAI={handleOpenAI} />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={config.settings} onSave={handleSettingsSave} onLogout={canEdit && authenticated ? handleLogout : undefined} authenticated={authenticated} />
 
       {/* Bookmark add/edit modal */}

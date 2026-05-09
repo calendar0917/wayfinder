@@ -10,7 +10,7 @@ interface CommandPaletteProps {
   searchEngine: string;
   customUrl: string;
   authenticated: boolean;
-  onAiChat: (message: string) => Promise<string>;
+  onOpenAI?: (message: string) => void;
 }
 
 function flattenBookmarks(groups: Group[], prefix = ""): { name: string; url: string; group: string }[] {
@@ -44,12 +44,10 @@ export default function CommandPalette({
   searchEngine,
   customUrl,
   authenticated,
-  onAiChat,
+  onOpenAI,
 }: CommandPaletteProps) {
   const [rawInput, setRawInput] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [aiResponse, setAiResponse] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // "/" prefix = AI mode, everything else = search mode
@@ -74,8 +72,6 @@ export default function CommandPalette({
     if (open) {
       setRawInput("");
       setSelectedIndex(0);
-      setAiResponse("");
-      setAiLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -91,23 +87,11 @@ export default function CommandPalette({
     [searchItems, onClose]
   );
 
-  const handleAiSubmit = useCallback(async () => {
-    if (!query.trim() || aiLoading) return;
-    if (!authenticated) {
-      setAiResponse("Please login first to use AI. Click Settings or go to /login.");
-      return;
-    }
-    setAiLoading(true);
-    setAiResponse("");
-    try {
-      const result = await onAiChat(query.trim());
-      setAiResponse(result);
-    } catch {
-      setAiResponse("Failed to get AI response.");
-    } finally {
-      setAiLoading(false);
-    }
-  }, [query, aiLoading, onAiChat, authenticated]);
+  const handleAiSubmit = useCallback(() => {
+    if (!query.trim()) return;
+    onOpenAI?.(query.trim());
+    onClose();
+  }, [query, onOpenAI, onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -168,7 +152,6 @@ export default function CommandPalette({
               onChange={(e) => {
                 setRawInput(e.target.value);
                 setSelectedIndex(0);
-                setAiResponse("");
               }}
               placeholder={authenticated ? "Search or type / for AI..." : "Search bookmarks..."}
               className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--text)] placeholder:text-[var(--text-tertiary)]"
@@ -190,18 +173,9 @@ export default function CommandPalette({
                 <div className="px-4 py-3 text-sm text-[var(--text-tertiary)]">
                   Login required to use AI. Type without / to search bookmarks.
                 </div>
-              ) : aiLoading ? (
-                <div className="px-4 py-3 text-sm text-[var(--text-secondary)]">
-                  <span className="inline-block w-2 h-4 bg-[var(--accent)] animate-pulse mr-1" />
-                  Thinking...
-                </div>
-              ) : aiResponse ? (
-                <div className="px-4 py-3 text-sm text-[var(--text)] whitespace-pre-wrap">
-                  {aiResponse}
-                </div>
               ) : (
                 <div className="px-4 py-3 text-sm text-[var(--text-tertiary)]">
-                  Ask a question — e.g. "add a bookmark to YouTube"
+                  Press Enter to open AI assistant...
                 </div>
               )}
             </div>

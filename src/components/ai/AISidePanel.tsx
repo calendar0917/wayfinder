@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Markdown from "react-markdown";
+import { useToast } from "@/components/ui/ToastProvider";
 
 interface Message {
   role: "user" | "assistant" | "system" | "tool";
@@ -23,7 +24,17 @@ interface AISidePanelProps {
   onClose: () => void;
   onConfigUpdate?: () => void;
   authenticated: boolean;
+  initialMessage?: string;
 }
+
+const SUGGESTED_PROMPTS = [
+  "Add a bookmark to YouTube",
+  "Change theme to dark",
+  "Update the page title",
+  "Add a new group called Social",
+  "Change search engine to DuckDuckGo",
+  "Add a notes widget",
+];
 
 function ToolCard({ name, success, result }: { name: string; success: boolean; result: string }) {
   return (
@@ -51,12 +62,20 @@ function ToolCard({ name, success, result }: { name: string; success: boolean; r
   );
 }
 
-export default function AISidePanel({ open, onClose, onConfigUpdate, authenticated }: AISidePanelProps) {
+export default function AISidePanel({ open, onClose, onConfigUpdate, authenticated, initialMessage }: AISidePanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastInitialRef = useRef("");
+  const clearPendingRef = useRef(false);
+  const messagesRef = useRef<Message[]>([]);
+  const { toast } = useToast();
+
+  // Keep ref in sync with state
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   useEffect(() => {
     if (open && authenticated) inputRef.current?.focus();
@@ -70,24 +89,42 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
     if (open && !authenticated) setMessages([]);
   }, [open, authenticated]);
 
-  const sendMessage = useCallback(async () => {
-    if (!input.trim() || streaming) return;
+  // Handle initialMessage from CommandPalette
+  useEffect(() => {
+    if (initialMessage && initialMessage !== lastInitialRef.current && !streaming) {
+      lastInitialRef.current = initialMessage;
+      sendMessage(initialMessage);
+    }
+  }, [initialMessage, streaming]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset initial message tracking when panel closes
+  useEffect(() => {
+    if (!open) lastInitialRef.current = "";
+  }, [open]);
+
+  const sendMessage = useCallback(async (text: string) => {
+    const msg = text.trim();
+    if (!msg || streaming) return;
 
     if (!authenticated) {
       setMessages((prev) => [...prev, { role: "system", content: "Please login first to use AI. Click Settings or go to /login." }]);
       return;
     }
 
-    const userMsg = input.trim();
     setInput("");
     setStreaming(true);
-    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+    setMessages((prev) => [...prev, { role: "user", content: msg }]);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
+      const history = messagesRef.current.filter(m => m.role !== "system");
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages.filter(m => m.role !== "system"), { role: "user", content: userMsg }] }),
+        body: JSON.stringify({ messages: [...history, { role: "user", content: msg }] }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -165,15 +202,12 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
         for (const line of lines) processLine(line);
       }
 
-      // Flush any remaining buffered content (e.g. the last SSE event
-      // if it wasn't terminated by a trailing newline).
+      // Flush any remaining buffered content
       buffer += decoder.decode();
       if (buffer) {
         for (const line of buffer.split("\n")) processLine(line);
       }
 
-      // Safety net: ensure config is always refreshed after AI modifies it,
-      // even if the config_updated SSE event was missed or fetchConfig failed.
       if (configModified) {
         onConfigUpdate?.();
       }
@@ -185,12 +219,36 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
           return updated;
         });
       }
-    } catch {
-      setMessages((prev) => [...prev, { role: "system", content: "Connection error. Please try again." }]);
+    } catch (err) {
+      // Distinguish user-initiated abort from connection errors
+      if (err instanceof DOMException && err.name === "AbortError") {
+        if (clearPendingRef.current) {
+          clearPendingRef.current = false;
+        } else {
+          setMessages((prev) => [...prev, { role: "system", content: "Generation stopped." }]);
+        }
+      } else {
+        setMessages((prev) => [...prev, { role: "system", content: "Connection error. Please try again." }]);
+      }
     } finally {
       setStreaming(false);
+      abortControllerRef.current = null;
     }
-  }, [input, messages, streaming, authenticated, onConfigUpdate]);
+  }, [streaming, authenticated, onConfigUpdate]);
+
+  const stopGeneration = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  const clearConversation = useCallback(() => {
+    if (streaming) {
+      clearPendingRef.current = true;
+      abortControllerRef.current?.abort();
+    }
+    setMessages([]);
+    setInput("");
+    toast("Conversation cleared", "success");
+  }, [streaming, toast]);
 
   return (
     <>
@@ -211,14 +269,28 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
           <h2 className="text-sm font-semibold text-[var(--text)]">AI Assistant</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text)] cursor-pointer"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-1">
+            {messages.length > 0 && (
+              <button
+                onClick={clearConversation}
+                title="Clear conversation"
+                className="p-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text)] cursor-pointer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text)] cursor-pointer"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
           {!authenticated && messages.length === 0 && (
@@ -228,9 +300,22 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
             </div>
           )}
           {authenticated && messages.length === 0 && (
-            <p className="text-sm text-[var(--text-tertiary)] text-center py-8">
-              Ask me to add bookmarks, change layout, or update settings.
-            </p>
+            <div className="flex flex-col items-center gap-4 py-8">
+              <p className="text-sm text-[var(--text-tertiary)] text-center">
+                Ask me to add bookmarks, change layout, or update settings.
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center max-w-[90%]">
+                {SUGGESTED_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => sendMessage(prompt)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-full bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent-soft-hover)] transition-colors duration-150 cursor-pointer"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           {messages.map((msg, i) => (
             <div
@@ -264,7 +349,7 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
         </div>
         <div className="px-4 py-3 border-t border-[var(--border)]">
           <form
-            onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
+            onSubmit={(e) => { e.preventDefault(); sendMessage(input); }}
             className="flex gap-2"
           >
             <input
@@ -274,13 +359,23 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
               placeholder={authenticated ? "Type a message..." : "Login to chat..."}
               className="flex-1 px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] disabled:opacity-50 placeholder:text-[var(--text-tertiary)]"
             />
-            <button
-              type="submit"
-              disabled={streaming || !input.trim()}
-              className="px-3 py-2 bg-[var(--accent)] text-white border-none rounded-[var(--radius-sm)] text-sm font-semibold cursor-pointer transition-all duration-150 hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {streaming ? "..." : "Send"}
-            </button>
+            {streaming ? (
+              <button
+                type="button"
+                onClick={stopGeneration}
+                className="px-3 py-2 bg-[var(--error-soft)] text-[var(--error)] border border-[var(--error)] rounded-[var(--radius-sm)] text-sm font-semibold cursor-pointer transition-all duration-150 hover:bg-[var(--error)] hover:text-white"
+              >
+                Stop
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className="px-3 py-2 bg-[var(--accent)] text-white border-none rounded-[var(--radius-sm)] text-sm font-semibold cursor-pointer transition-all duration-150 hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Send
+              </button>
+            )}
           </form>
         </div>
       </div>
