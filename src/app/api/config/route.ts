@@ -9,7 +9,9 @@ import { checkCsrf } from "@/lib/csrf";
 
 export async function GET() {
   const config = readConfigSafe();
-  return NextResponse.json(config);
+  return NextResponse.json(config, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }
 
 export async function PUT(request: NextRequest) {

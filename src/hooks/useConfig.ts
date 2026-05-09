@@ -25,8 +25,8 @@ export function useConfig() {
   const fetchConfig = useCallback(async () => {
     try {
       const [cfgRes, authRes] = await Promise.all([
-        fetch("/api/config"),
-        fetch("/api/auth/status"),
+        fetch("/api/config", { cache: "no-store" }),
+        fetch("/api/auth/status", { cache: "no-store" }),
       ]);
       const cfg = await cfgRes.json();
       const auth = await authRes.json();

@@ -105,6 +105,7 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
 
       let assistantContent = "";
       let hasContent = false;
+      let configModified = false;
       setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
       const decoder = new TextDecoder();
@@ -125,6 +126,7 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
           } else if (event.type === "tool_executing") {
             setMessages((prev) => [...prev, { role: "tool", content: "...", toolName: event.name, toolSuccess: false }]);
           } else if (event.type === "tool_result") {
+            if (event.success) configModified = true;
             setMessages((prev) => {
               const updated = [...prev];
               for (let i = updated.length - 1; i >= 0; i--) {
@@ -168,6 +170,12 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
       buffer += decoder.decode();
       if (buffer) {
         for (const line of buffer.split("\n")) processLine(line);
+      }
+
+      // Safety net: ensure config is always refreshed after AI modifies it,
+      // even if the config_updated SSE event was missed or fetchConfig failed.
+      if (configModified) {
+        onConfigUpdate?.();
       }
 
       if (!hasContent) {
