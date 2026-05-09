@@ -3,7 +3,7 @@
 一个带 AI 助手的自托管导航仪表盘。用自然语言管理你的书签、小组件和集成服务。
 
 - 示例网站：https://calendar0917.github.io/wayfinder/
-- Docker 镜像：`ghcr.io/calendar0917/wayfinder:1.0.0`
+- Docker 镜像：`ghcr.io/calendar0917/wayfinder:latest`
 - GitHub：https://github.com/calendar0917/wayfinder
 
 [English](README.en.md)
@@ -33,7 +33,7 @@ cd wayfinder
 cp .env.example .env.local
 cp data/settings.example.yaml data/settings.yaml
 
-# 生成认证密钥
+# 生成 Cookie 签名密钥
 echo "AUTH_SECRET=$(openssl rand -hex 32)" >> .env.local
 
 # 启动
@@ -51,7 +51,7 @@ docker run -d \
   -v $(pwd)/data:/app/data \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -e AUTH_SECRET=your-secret \
-  ghcr.io/calendar0917/wayfinder:1.0.0
+  ghcr.io/calendar0917/wayfinder:latest
 ```
 
 ### AI 配置（可选）
@@ -65,7 +65,7 @@ WAYFINDER_API_BASE=https://api.openai.com/v1    # 或任意兼容端点
 WAYFINDER_AI_MODEL=gpt-4o                         # 或你偏好的模型
 ```
 
-也可以直接在仪表盘的设置对话框中配置。
+也可以直接在仪表盘的设置对话框中配置。环境变量仅作为初始默认值，在页面中修改后会保存到配置文件，重启后仍然有效。
 
 ### 不使用 Docker
 

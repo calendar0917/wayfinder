@@ -102,15 +102,18 @@ export function readConfig(): AppConfig {
       config.version = CURRENT_CONFIG_VERSION;
       writeConfig(config);
     }
-    // Overlay secrets from environment variables (env takes precedence, then fallback to default)
-    const apiKey = process.env.WAYFINDER_API_KEY || config.settings.apiKey;
-    const passwordHash = process.env.WAYFINDER_PASSWORD_HASH || config.settings.passwordHash || DEFAULT_PASSWORD_HASH;
-    const apiBase = process.env.WAYFINDER_API_BASE || config.settings.apiBase;
-    const aiModel = process.env.WAYFINDER_AI_MODEL || config.settings.aiModel;
-    config.settings.apiKey = apiKey;
-    config.settings.passwordHash = passwordHash;
-    config.settings.apiBase = apiBase;
-    config.settings.aiModel = aiModel;
+    // Env vars seed empty config fields only — never override values saved in YAML.
+    // Exception: WAYFINDER_PASSWORD_HASH always takes precedence for security.
+    if (!config.settings.apiKey && process.env.WAYFINDER_API_KEY) {
+      config.settings.apiKey = process.env.WAYFINDER_API_KEY;
+    }
+    config.settings.passwordHash = process.env.WAYFINDER_PASSWORD_HASH || config.settings.passwordHash || DEFAULT_PASSWORD_HASH;
+    if (!config.settings.apiBase && process.env.WAYFINDER_API_BASE) {
+      config.settings.apiBase = process.env.WAYFINDER_API_BASE;
+    }
+    if (!config.settings.aiModel && process.env.WAYFINDER_AI_MODEL) {
+      config.settings.aiModel = process.env.WAYFINDER_AI_MODEL;
+    }
     return config;
   } catch {
     console.error("Config parse error, falling back to defaults");
@@ -123,9 +126,11 @@ export function readConfig(): AppConfig {
 export function writeConfig(config: AppConfig): void {
   ensureDataDir();
   const validated = configSchema.parse(config);
-  // Never persist secrets to YAML — they only live in environment variables
-  validated.settings.apiKey = "";
-  validated.settings.passwordHash = "";
+  // Preserve valid bcrypt hashes (user-set passwords) so they survive restarts.
+  // Only clear empty/placeholder values — never strip real hashes.
+  if (!validated.settings.passwordHash?.startsWith("$2")) {
+    validated.settings.passwordHash = "";
+  }
   const yamlStr = yaml.dump(validated, {
     indent: 2,
     lineWidth: -1,

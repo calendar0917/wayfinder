@@ -1,6 +1,6 @@
 services:
   wayfinder:
-    build: .
+    image: ghcr.io/calendar0917/wayfinder:latest
     container_name: wayfinder
     ports:
       - "3000:3000"
@@ -8,7 +8,5 @@ services:
       - ./data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file: .env.local
-    environment:
-      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
     pid: host
     restart: unless-stopped

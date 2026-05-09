@@ -78,11 +78,10 @@ export default function SettingsDialog({
       mutations.push({ operation: "update_locale", arguments: { locale } });
     }
     if (apiKey || apiBase || aiModel) {
-      const aiArgs: Record<string, unknown> = {};
-      if (apiKey) aiArgs.apiKey = apiKey;
-      if (apiBase) aiArgs.apiBase = apiBase;
-      if (aiModel) aiArgs.aiModel = aiModel;
-      mutations.push({ operation: "update_ai_settings", arguments: aiArgs });
+      mutations.push({
+        operation: "update_ai_settings",
+        arguments: { apiKey: apiKey || "", apiBase: apiBase || "", aiModel: aiModel || "" },
+      });
     }
     if (newPassword && newPassword.length >= 4) {
       mutations.push({ operation: "set_password", arguments: { password: newPassword } });

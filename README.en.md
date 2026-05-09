@@ -3,7 +3,7 @@
 A self-hosted dashboard with AI assistant. Manage your bookmarks, widgets, and integrations through natural language.
 
 - Demo: https://calendar0917.github.io/wayfinder/
-- Docker image: `ghcr.io/calendar0917/wayfinder:1.0.0`
+- Docker image: `ghcr.io/calendar0917/wayfinder:latest`
 - GitHub: https://github.com/calendar0917/wayfinder
 
 [中文](README.md)
@@ -33,7 +33,7 @@ cd wayfinder
 cp .env.example .env.local
 cp data/settings.example.yaml data/settings.yaml
 
-# Generate auth secret
+# Generate cookie signing secret
 echo "AUTH_SECRET=$(openssl rand -hex 32)" >> .env.local
 
 # Start
@@ -51,7 +51,7 @@ docker run -d \
   -v $(pwd)/data:/app/data \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -e AUTH_SECRET=your-secret \
-  ghcr.io/calendar0917/wayfinder:1.0.0
+  ghcr.io/calendar0917/wayfinder:latest
 ```
 
 ### AI Setup (Optional)

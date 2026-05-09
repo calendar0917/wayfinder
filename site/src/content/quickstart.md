@@ -15,13 +15,16 @@ docker compose up -d
 
 打开 `http://localhost:3000`，通过设置对话框或 AI 对话设置密码。
 
-### AI 配置（可选）
+### 环境变量说明
 
-```bash
-# 在 .env.local 中添加
-WAYFINDER_API_KEY=sk-your-api-key
-WAYFINDER_API_BASE=https://api.openai.com/v1
-WAYFINDER_AI_MODEL=gpt-4o
-```
+| 变量 | 说明 |
+|------|------|
+| `AUTH_SECRET` | Cookie 签名密钥（签名登录 Cookie，不是登录密码），必填 |
+| `WAYFINDER_API_KEY` | AI 服务 API Key，可选，也可在页面设置 |
+| `WAYFINDER_API_BASE` | AI 服务 API 地址，可选，也可在页面设置 |
+| `WAYFINDER_AI_MODEL` | AI 模型名称，可选，也可在页面设置 |
+| `WAYFINDER_PASSWORD_HASH` | 登录密码的 bcrypt 哈希，留空则默认密码为 admin |
+
+> 环境变量仅作为初始默认值，在页面设置中修改后会保存到配置文件，重启后仍然有效。
 
 更详细的配置说明请参阅 [README](https://github.com/calendar0917/wayfinder/blob/main/README.md)。

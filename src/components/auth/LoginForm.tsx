@@ -7,6 +7,7 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [noAuthNeeded, setNoAuthNeeded] = useState(false);
+  const [isDefaultPassword, setIsDefaultPassword] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/status")
@@ -15,6 +16,9 @@ export default function LoginForm() {
         if (!auth.authRequired) {
           setNoAuthNeeded(true);
           window.location.href = "/";
+        }
+        if (auth.isDefaultPassword) {
+          setIsDefaultPassword(true);
         }
       })
       .catch(() => {});
@@ -62,6 +66,11 @@ export default function LoginForm() {
         <p className="text-sm text-[var(--text-secondary)] mb-4">
           Enter your password to access the dashboard.
         </p>
+        {isDefaultPassword && (
+          <div className="mb-4 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-[var(--radius-sm)] text-xs text-amber-700 dark:text-amber-300">
+            Default password is <strong>admin</strong>. Please change it in Settings after login.
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             type="password"
