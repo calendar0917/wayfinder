@@ -1,5 +1,6 @@
-import { readConfig } from "./config";
+import { readConfig, resolveEnvVar } from "./config";
 import type { AppConfig, Bookmark, Group, Page, IntegrationFieldType } from "@/types/config";
+import { INTEGRATION_TEMPLATES } from "./integration-templates";
 
 const VALID_FIELD_TYPES: IntegrationFieldType[] = ["text", "number", "percent", "status", "bytes", "duration", "bitrate", "temperature"];
 
@@ -353,13 +354,14 @@ export const toolDefinitions = [
     type: "function" as const,
     function: {
       name: "configure_integration",
-      description: "Configure a live data integration on a bookmark. Fetches JSON from an endpoint and displays extracted fields inline, as a badge, or as a card. Header values can reference environment variables with ${VAR_NAME} syntax.",
+      description: "Configure a live data integration on a bookmark. Use 'template' to auto-fill from a preset (call list_templates first), or provide endpoint/fields manually. For unknown APIs, call probe_endpoint first to discover the JSON structure. Header values can reference environment variables with ${VAR_NAME} syntax.",
       parameters: {
         type: "object",
         properties: {
           name: { type: "string", description: "Bookmark name to add integration to" },
           group: { type: "string", description: "Group name (optional, helps locate bookmark)" },
-          endpoint: { type: "string", description: "URL to fetch JSON data from" },
+          template: { type: "string", description: "Template ID from list_templates (e.g. 'portainer', 'pihole'). Auto-fills endpoint/fields — provide variables to substitute: HOST, API_KEY" },
+          endpoint: { type: "string", description: "URL to fetch JSON data from. Required if no template; ignored when template is provided" },
           headers: {
             type: "object",
             description: "HTTP headers (values can use ${VAR_NAME} for secrets)",
@@ -388,7 +390,52 @@ export const toolDefinitions = [
             description: "Poll interval in seconds (5-3600, default: 60)",
           },
         },
-        required: ["name", "endpoint", "fields"],
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_templates",
+      description: "List available integration templates with their IDs, required variables, and field summaries. Use before configure_integration to find the right template ID.",
+      parameters: {
+        type: "object",
+        properties: {
+          filter: { type: "string", description: "Optional name/keyword filter (e.g. 'docker', 'media')" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "probe_endpoint",
+      description: "Probe a JSON API endpoint and return its response structure. Use this before configure_integration when no template exists, so you can discover the real JSON shape and write correct field paths.",
+      parameters: {
+        type: "object",
+        properties: {
+          endpoint: { type: "string", description: "URL to probe" },
+          headers: {
+            type: "object",
+            description: "HTTP headers (values can use ${VAR_NAME} for secrets)",
+            additionalProperties: { type: "string" },
+          },
+        },
+        required: ["endpoint"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_env_vars",
+      description: "List available environment variable names (values are NOT exposed). Use this to discover which ${VAR_NAME} secrets are available for integration headers, so you never need to ask users for API keys in plain text.",
+      parameters: {
+        type: "object",
+        properties: {
+          filter: { type: "string", description: "Optional keyword filter (e.g. 'API', 'PORTAINER', 'KEY')" },
+        },
       },
     },
   },
@@ -547,28 +594,36 @@ export function executeTool(
     }
 
     case "remove_bookmark": {
-      const found = findBookmark(config.groups, args.name as string, args.group as string | undefined);
+      const bookmarkName = (args.name as string)?.trim();
+      if (!bookmarkName) {
+        return { success: false, result: "Bookmark name is required", config };
+      }
+      const found = findBookmark(config.groups, bookmarkName, args.group as string | undefined);
       if (!found) {
         return {
           success: false,
-          result: `Bookmark '${args.name}' not found`,
+          result: `Bookmark '${bookmarkName}' not found`,
           config,
         };
       }
       found.group.bookmarks!.splice(found.index, 1);
       return {
         success: true,
-        result: `Bookmark '${args.name}' removed`,
+        result: `Bookmark '${bookmarkName}' removed`,
         config,
       };
     }
 
     case "update_bookmark": {
-      const found = findBookmark(config.groups, args.name as string, args.group as string | undefined);
+      const bookmarkName = (args.name as string)?.trim();
+      if (!bookmarkName) {
+        return { success: false, result: "Bookmark name is required", config };
+      }
+      const found = findBookmark(config.groups, bookmarkName, args.group as string | undefined);
       if (!found) {
         return {
           success: false,
-          result: `Bookmark '${args.name}' not found`,
+          result: `Bookmark '${bookmarkName}' not found`,
           config,
         };
       }
@@ -706,16 +761,23 @@ export function executeTool(
         }
         return false;
       }
-      if (removeGroup(config.groups, args.name as string)) {
+      const groupName = args.name as string;
+      if (removeGroup(config.groups, groupName)) {
+        // Clean up page references
+        if (config.pages) {
+          for (const page of config.pages) {
+            page.groups = page.groups.filter((g) => g !== groupName);
+          }
+        }
         return {
           success: true,
-          result: `Group '${args.name}' removed`,
+          result: `Group '${groupName}' removed`,
           config,
         };
       }
       return {
         success: false,
-        result: `Group '${args.name}' not found`,
+        result: `Group '${groupName}' not found`,
         config,
       };
     }
@@ -744,10 +806,19 @@ export function executeTool(
           config,
         };
       }
-      group.name = args.newName as string;
+      const oldName = args.oldName as string;
+      const newName = args.newName as string;
+      group.name = newName;
+      // Update page references
+      if (config.pages) {
+        for (const page of config.pages) {
+          const idx = page.groups.indexOf(oldName);
+          if (idx >= 0) page.groups[idx] = newName;
+        }
+      }
       return {
         success: true,
-        result: `Group renamed from '${args.oldName}' to '${args.newName}'`,
+        result: `Group renamed from '${oldName}' to '${newName}'`,
         config,
       };
     }
@@ -922,30 +993,84 @@ export function executeTool(
     }
 
     case "configure_integration": {
-      const found = findBookmark(config.groups, args.name as string, args.group as string | undefined);
+      const intBookmarkName = (args.name as string)?.trim();
+      if (!intBookmarkName) {
+        return { success: false, result: "Bookmark name is required", config };
+      }
+      const found = findBookmark(config.groups, intBookmarkName, args.group as string | undefined);
       if (!found) {
         return { success: false, result: `Bookmark '${args.name}' not found`, config };
       }
+
+      let endpoint = args.endpoint as string | undefined;
+      let headers = (args.headers as Record<string, string>) || {};
+      let fields = args.fields as Array<{ path: string; label?: string; type?: string }> | undefined;
+      let display: "inline" | "badge" | "card" | undefined;
+
+      // Template mode: auto-fill from template
+      if (args.template) {
+        const tpl = INTEGRATION_TEMPLATES.find((t) => t.id === (args.template as string));
+        if (!tpl) {
+          const available = INTEGRATION_TEMPLATES.map((t) => t.id).join(", ");
+          return { success: false, result: `Template '${args.template}' not found. Available: ${available}`, config };
+        }
+
+        // Auto-resolve HOST from bookmark URL
+        const bookmarkUrl = found.bookmark.url;
+        let hostFromUrl = "";
+        try {
+          const u = new URL(bookmarkUrl);
+          hostFromUrl = u.hostname + (u.port && u.port !== "80" && u.port !== "443" ? `:${u.port}` : "");
+        } catch { /* bookmark URL might be invalid, AI must provide HOST explicitly */ }
+
+        // Substitute: HOST from bookmark URL, other vars from args or env
+        const vars: Record<string, string> = { HOST: hostFromUrl };
+        for (const [key, val] of Object.entries(args)) {
+          if (typeof val === "string" && key !== "name" && key !== "group" && key !== "template" && key !== "display" && key !== "pollInterval") {
+            vars[key] = val;
+          }
+        }
+        const substitute = (s: string) => s.replace(/\$\{(\w+)\}/g, (_, k) => {
+          if (vars[k]) return vars[k];
+          // Keep ${VAR_NAME} as-is for env vars (resolved at proxy time by resolveString)
+          return `\${${k}}`;
+        });
+
+        endpoint = substitute(tpl.endpoint);
+        const tplHeaders: Record<string, string> = {};
+        if (tpl.headers) {
+          for (const [k, v] of Object.entries(tpl.headers)) {
+            tplHeaders[k] = substitute(v);
+          }
+        }
+        headers = { ...tplHeaders, ...headers };
+        fields = tpl.fields.map((f) => ({ path: f.path, label: f.label, type: f.type }));
+        if (!display) display = tpl.display;
+      }
+
+      if (!endpoint) {
+        return { success: false, result: "Endpoint is required (provide 'endpoint' or 'template')", config };
+      }
       try {
-        const parsed = new URL(args.endpoint as string);
+        const parsed = new URL(endpoint);
         if (!["http:", "https:"].includes(parsed.protocol)) {
           return { success: false, result: "Only HTTP(S) endpoints allowed", config };
         }
       } catch {
-        return { success: false, result: "Invalid endpoint URL", config };
+        return { success: false, result: `Invalid endpoint URL: ${endpoint}`, config };
       }
-      if (!Array.isArray(args.fields) || args.fields.length === 0) {
+      if (!fields || !Array.isArray(fields) || fields.length === 0) {
         return { success: false, result: "At least one field path is required", config };
       }
       found.bookmark.integration = {
-        endpoint: args.endpoint as string,
-        headers: (args.headers as Record<string, string>) || {},
-        fields: (args.fields as Array<{ path: string; label?: string; type?: string }>).map((f) => ({
+        endpoint,
+        headers,
+        fields: fields.map((f) => ({
           path: f.path,
           label: f.label || "",
           type: (VALID_FIELD_TYPES.includes(f.type as IntegrationFieldType) ? f.type : "text") as IntegrationFieldType,
         })),
-        display: (args.display as "inline" | "badge" | "card") || "inline",
+        display: display || "inline",
         pollInterval: typeof args.pollInterval === "number" ? Math.max(5, Math.min(3600, args.pollInterval)) : 60,
       };
       return {
@@ -955,8 +1080,84 @@ export function executeTool(
       };
     }
 
+    case "list_templates": {
+      const filter = ((args.filter as string) || "").toLowerCase();
+      const templates = INTEGRATION_TEMPLATES
+        .filter((t) => !filter || t.name.toLowerCase().includes(filter) || t.id.includes(filter))
+        .map((t) => {
+          // Extract variable names from endpoint/headers
+          const varPattern = /\$\{(\w+)\}/g;
+          const vars = new Set<string>();
+          let m: RegExpExecArray | null;
+          while ((m = varPattern.exec(t.endpoint)) !== null) vars.add(m[1]);
+          if (t.headers) {
+            for (const v of Object.values(t.headers)) {
+              while ((m = varPattern.exec(v)) !== null) vars.add(m[1]);
+            }
+          }
+          return {
+            id: t.id,
+            name: t.name,
+            icon: t.icon,
+            variables: [...vars],
+            fields: t.fields.map((f) => `${f.path} (${f.label}, ${f.type})`),
+            display: t.display,
+          };
+        });
+      return {
+        success: true,
+        result: templates.length
+          ? templates.map((t) => `${t.id}: ${t.name} ${t.icon} — vars: ${t.variables.join(", ") || "none"} — fields: ${t.fields.join("; ")} — display: ${t.display}`).join("\n")
+          : "No templates found",
+        config,
+      };
+    }
+
+    case "probe_endpoint": {
+      const probeUrl = args.endpoint as string;
+      if (!probeUrl) {
+        return { success: false, result: "Endpoint URL is required", config };
+      }
+      try {
+        new URL(probeUrl);
+      } catch {
+        return { success: false, result: "Invalid endpoint URL", config };
+      }
+      // Return a marker so the chat route knows to proxy this request
+      return {
+        success: true,
+        result: `__PROBE__${JSON.stringify({ endpoint: probeUrl, headers: args.headers || {} })}`,
+        config,
+      };
+    }
+
+    case "list_env_vars": {
+      const filter = ((args.filter as string) || "").toLowerCase();
+      const allVars = Object.keys(process.env).sort();
+      const filtered = filter
+        ? allVars.filter((v) => v.toLowerCase().includes(filter))
+        : allVars.filter((v) => {
+            // Default: show likely relevant vars (keys, hosts, tokens, URLs)
+            const lower = v.toLowerCase();
+            return lower.includes("api") || lower.includes("key") || lower.includes("token") ||
+              lower.includes("host") || lower.includes("url") || lower.includes("secret") ||
+              lower.includes("sid") || lower.includes("cookie");
+          });
+      return {
+        success: true,
+        result: filtered.length
+          ? `Available env vars (values NOT exposed): ${filtered.join(", ")}\nReference them in integration headers as \${VAR_NAME}`
+          : "No matching environment variables found. Add them to your .env.local file.",
+        config,
+      };
+    }
+
     case "remove_integration": {
-      const found = findBookmark(config.groups, args.name as string, args.group as string | undefined);
+      const riName = (args.name as string)?.trim();
+      if (!riName) {
+        return { success: false, result: "Bookmark name is required", config };
+      }
+      const found = findBookmark(config.groups, riName, args.group as string | undefined);
       if (!found) {
         return { success: false, result: `Bookmark '${args.name}' not found`, config };
       }
@@ -995,9 +1196,21 @@ export function executeTool(
     }
 
     case "update_custom_css": {
-      const css = args.css as string;
-      if (typeof css !== "string") {
+      let css: string = "";
+      if (typeof args.css === "string") {
+        css = args.css;
+      } else if (typeof args.css === "object" && args.css !== null) {
+        css = JSON.stringify(args.css);
+      }
+      if (!css) {
         return { success: false, result: "css must be a string", config };
+      }
+      // Strip wrapping quotes if the model double-quoted the string
+      if (css.startsWith('"') && css.endsWith('"') && css.length >= 2) {
+        try { css = JSON.parse(css) as string; } catch { /* not JSON-quoted, use as-is */ }
+      }
+      if (!css.trim()) {
+        return { success: false, result: "css cannot be empty", config };
       }
       // Basic sanitization: strip <script> tags
       const sanitized = css.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script>/gi, "");

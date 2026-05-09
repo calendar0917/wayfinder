@@ -18,6 +18,10 @@ export function resolveEnvVar(value: unknown): unknown {
   return value;
 }
 
+export function resolveString(value: string): string {
+  return value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? `\${${name}}`);
+}
+
 function resolveEnvVars(obj: unknown): unknown {
   if (typeof obj === "string") return resolveEnvVar(obj);
   if (Array.isArray(obj)) return obj.map(resolveEnvVars);

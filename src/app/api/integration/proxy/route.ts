@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readConfig, resolveEnvVar } from "@/lib/config";
+import { readConfig, resolveString } from "@/lib/config";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/csrf";
 import type { Group, Bookmark } from "@/types/config";
@@ -22,10 +22,15 @@ function findBookmarkInGroups(
   return null;
 }
 
-function resolveHeaders(headers: Record<string, string>): Record<string, string> {
+function resolveHeaders(headers: Record<string, string>, extraVars: Record<string, string>): Record<string, string> {
   const resolved: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    resolved[key] = (resolveEnvVar(value) as string) || value;
+    // First substitute extra vars (e.g. HOST from bookmark URL), then env vars
+    let result = value;
+    for (const [varName, varVal] of Object.entries(extraVars)) {
+      result = result.replace(new RegExp(`\\$\\{${varName}\\}`, "g"), varVal);
+    }
+    resolved[key] = resolveString(result);
   }
   return resolved;
 }
@@ -57,9 +62,22 @@ export async function POST(request: NextRequest) {
 
     const { endpoint, headers } = bookmark.integration;
 
+    // Auto-resolve ${HOST} from bookmark URL
+    const extraVars: Record<string, string> = {};
+    try {
+      const u = new URL(bookmark.url);
+      extraVars.HOST = u.hostname + (u.port && u.port !== "80" && u.port !== "443" ? `:${u.port}` : "");
+    } catch { /* bookmark URL invalid, HOST must come from env */ }
+
+    let resolvedEndpoint = endpoint;
+    for (const [varName, varVal] of Object.entries(extraVars)) {
+      resolvedEndpoint = resolvedEndpoint.replace(new RegExp(`\\$\\{${varName}\\}`, "g"), varVal);
+    }
+    resolvedEndpoint = resolveString(resolvedEndpoint);
+
     let parsedUrl: URL;
     try {
-      parsedUrl = new URL(endpoint);
+      parsedUrl = new URL(resolvedEndpoint);
     } catch {
       return NextResponse.json({ error: "Invalid endpoint URL" }, { status: 400 });
     }
@@ -67,7 +85,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only HTTP(S) endpoints allowed" }, { status: 400 });
     }
 
-    const resolvedHeaders = headers ? resolveHeaders(headers) : {};
+    const resolvedHeaders = headers ? resolveHeaders(headers, extraVars) : {};
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);

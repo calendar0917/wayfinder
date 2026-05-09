@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readConfig, writeConfig, withWriteLock } from "@/lib/config";
+import { readConfig, writeConfig, withWriteLock, resolveEnvVar } from "@/lib/config";
 import { configSchema } from "@/lib/config-schema";
 import { createClient, SYSTEM_PROMPT } from "@/lib/ai-provider";
 import { toolDefinitions, executeTool } from "@/lib/ai-tools";
@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
               string,
               { name: string; args: string }
             >();
+            // Track the most recent tool call id for streaming arg chunks
+            let lastToolCallId: string | null = null;
 
             for await (const chunk of stream) {
               const delta = chunk.choices[0]?.delta;
@@ -75,8 +77,8 @@ export async function POST(request: NextRequest) {
               if (delta?.tool_calls) {
                 for (const tc of delta.tool_calls) {
                   if (!tc.function) continue;
-                  const id =
-                    tc.id || `tc_${iteration}_${toolCallBuffers.size}`;
+                  if (tc.id) lastToolCallId = tc.id;
+                  const id = tc.id || lastToolCallId || `tc_${iteration}_${toolCallBuffers.size}`;
                   if (tc.function.name) {
                     toolCallBuffers.set(id, {
                       name: tc.function.name,
@@ -143,7 +145,47 @@ export async function POST(request: NextRequest) {
                 parsedArgs = {};
               }
               const result = executeTool(tc.name, parsedArgs, currentConfig);
-              if (result.success) {
+
+              // Handle probe_endpoint: result contains __PROBE__ marker, fetch the real API
+              if (result.success && typeof result.result === "string" && result.result.startsWith("__PROBE__")) {
+                const probeData = JSON.parse(result.result.slice("__PROBE__".length));
+                try {
+                  const probeUrl = new URL(probeData.endpoint);
+                  if (!["http:", "https:"].includes(probeUrl.protocol)) throw new Error("Only HTTP(S) allowed");
+                  const probeHeaders: Record<string, string> = {
+                    "User-Agent": "HomepageDashboard/1.0 IntegrationProbe",
+                    "Accept": "application/json",
+                  };
+                  if (probeData.headers) {
+                    for (const [k, v] of Object.entries(probeData.headers as Record<string, string>)) {
+                      const resolved = resolveEnvVar(v);
+                      probeHeaders[k] = typeof resolved === "string" ? resolved : v;
+                    }
+                  }
+                  const controller2 = new AbortController();
+                  const timeout2 = setTimeout(() => controller2.abort(), 10000);
+                  const probeRes = await fetch(probeUrl.toString(), {
+                    signal: controller2.signal,
+                    headers: probeHeaders,
+                  });
+                  clearTimeout(timeout2);
+                  if (!probeRes.ok) {
+                    result.result = `Probe failed: HTTP ${probeRes.status}`;
+                  } else {
+                    const rawData = await probeRes.json();
+                    // Truncate to ~2000 chars to avoid bloating AI context
+                    const jsonStr = JSON.stringify(rawData, null, 2);
+                    const truncated = jsonStr.length > 2000
+                      ? jsonStr.slice(0, 2000) + "\n... (truncated)"
+                      : jsonStr;
+                    result.result = `Probe result for ${probeData.endpoint}:\n${truncated}`;
+                  }
+                } catch (e) {
+                  result.result = `Probe error: ${e instanceof Error ? e.message : "Request failed"}`;
+                }
+              }
+
+              if (result.success && tc.name !== "probe_endpoint" && tc.name !== "list_templates" && tc.name !== "list_env_vars") {
                 configModified = true;
               }
 
