@@ -1005,7 +1005,8 @@ export function executeTool(
       let endpoint = args.endpoint as string | undefined;
       let headers = (args.headers as Record<string, string>) || {};
       let fields = args.fields as Array<{ path: string; label?: string; type?: string }> | undefined;
-      let display: "inline" | "badge" | "card" | undefined;
+      let display: "inline" | "badge" | "card" | undefined =
+        args.display as "inline" | "badge" | "card" | undefined;
 
       // Template mode: auto-fill from template
       if (args.template) {
