@@ -1,0 +1,35 @@
+---
+import Landing from '../layouts/Landing.astro';
+import { Content as HeroContent } from '../content/hero.md';
+import { Content as FeaturesContent } from '../content/features.md';
+import { Content as GalleryContent } from '../content/gallery.md';
+import { Content as QuickstartContent } from '../content/quickstart.md';
+---
+
+<Landing>
+  <header class="hero">
+    <div class="hero-text"><HeroContent /></div>
+    <nav class="hero-actions">
+      <a class="btn" href="https://github.com/calendar0917/homepage">GitHub</a>
+      <a class="btn btn-outline" href="#quickstart">快速开始</a>
+    </nav>
+  </header>
+
+  <section class="section" id="features">
+    <FeaturesContent />
+  </section>
+
+  <section class="section" id="gallery">
+    <GalleryContent />
+  </section>
+
+  <section class="section" id="quickstart">
+    <QuickstartContent />
+  </section>
+
+  <footer class="footer">
+    <a href="https://github.com/calendar0917/homepage">GitHub</a>
+    <a href="https://github.com/calendar0917/homepage/blob/main/README.md">文档</a>
+    <span>GPL-3.0 License</span>
+  </footer>
+</Landing>
