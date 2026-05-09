@@ -1,4 +1,4 @@
-# Homepage
+# Wayfinder
 
 一个带 AI 助手的自托管导航仪表盘。用自然语言管理你的书签、小组件和集成服务。
 
@@ -22,8 +22,8 @@
 
 ```bash
 # 克隆
-git clone https://github.com/YOUR_USERNAME/homepage.git
-cd homepage
+git clone https://github.com/YOUR_USERNAME/wayfinder.git
+cd wayfinder
 
 # 配置
 cp .env.example .env.local
@@ -44,9 +44,9 @@ docker compose up -d
 
 ```bash
 # 在 .env.local 中添加
-HOMEPAGE_API_KEY=sk-your-api-key
-HOMEPAGE_API_BASE=https://api.openai.com/v1    # 或任意兼容端点
-HOMEPAGE_AI_MODEL=gpt-4o                         # 或你偏好的模型
+WAYFINDER_API_KEY=sk-your-api-key
+WAYFINDER_API_BASE=https://api.openai.com/v1    # 或任意兼容端点
+WAYFINDER_AI_MODEL=gpt-4o                         # 或你偏好的模型
 ```
 
 也可以直接在仪表盘的设置对话框中配置。
@@ -64,8 +64,8 @@ npm run dev
 
 ```yaml
 settings:
-  apiKey: ${HOMEPAGE_API_KEY}
-  passwordHash: ${HOMEPAGE_PASSWORD_HASH}
+  apiKey: ${WAYFINDER_API_KEY}
+  passwordHash: ${WAYFINDER_PASSWORD_HASH}
 ```
 
 完整配置示例见 `data/settings.example.yaml`，字段文档见 [docs/CONFIG_SCHEMA.md](docs/CONFIG_SCHEMA.md)。

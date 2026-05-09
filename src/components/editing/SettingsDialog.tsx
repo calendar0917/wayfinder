@@ -349,7 +349,7 @@ export default function SettingsDialog({
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `homepage-bookmarks-${new Date().toISOString().split("T")[0]}.json`;
+                      a.download = `wayfinder-bookmarks-${new Date().toISOString().split("T")[0]}.json`;
                       a.click();
                       URL.revokeObjectURL(url);
                       toast("Bookmarks exported", "success");

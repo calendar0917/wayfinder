@@ -18,7 +18,7 @@ export async function GET() {
   return new Response(JSON.stringify(exportData, null, 2), {
     headers: {
       "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="homepage-bookmarks-${new Date().toISOString().split("T")[0]}.json"`,
+      "Content-Disposition": `attachment; filename="wayfinder-bookmarks-${new Date().toISOString().split("T")[0]}.json"`,
     },
   });
 }

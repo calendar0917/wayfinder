@@ -3,10 +3,10 @@
 
 ## 预览
 
-![仪表盘总览](/homepage/images/dashboard.png)
+![仪表盘总览](/wayfinder/images/dashboard.png)
 
-![AI 助手对话](/homepage/images/ai-chat.png)
+![AI 助手对话](/wayfinder/images/ai-chat.png)
 
-![实时数据集成](/homepage/images/integrations.png)
+![实时数据集成](/wayfinder/images/integrations.png)
 
-![命令面板（Cmd+K）](/homepage/images/command-palette.png)
+![命令面板（Cmd+K）](/wayfinder/images/command-palette.png)

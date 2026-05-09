@@ -1,4 +1,4 @@
-# Homepage
+# Wayfinder
 
 A self-hosted dashboard with AI assistant. Manage your bookmarks, widgets, and integrations through natural language.
 
@@ -22,8 +22,8 @@ A self-hosted dashboard with AI assistant. Manage your bookmarks, widgets, and i
 
 ```bash
 # Clone
-git clone https://github.com/YOUR_USERNAME/homepage.git
-cd homepage
+git clone https://github.com/YOUR_USERNAME/wayfinder.git
+cd wayfinder
 
 # Configure
 cp .env.example .env.local
@@ -44,9 +44,9 @@ To enable the AI assistant, set your OpenAI-compatible API credentials:
 
 ```bash
 # In .env.local
-HOMEPAGE_API_KEY=sk-your-api-key
-HOMEPAGE_API_BASE=https://api.openai.com/v1    # or any compatible endpoint
-HOMEPAGE_AI_MODEL=gpt-4o                         # or your preferred model
+WAYFINDER_API_KEY=sk-your-api-key
+WAYFINDER_API_BASE=https://api.openai.com/v1    # or any compatible endpoint
+WAYFINDER_AI_MODEL=gpt-4o                         # or your preferred model
 ```
 
 Or configure them in the dashboard Settings dialog.
@@ -64,8 +64,8 @@ All configuration lives in `data/settings.yaml`. The file supports environment v
 
 ```yaml
 settings:
-  apiKey: ${HOMEPAGE_API_KEY}
-  passwordHash: ${HOMEPAGE_PASSWORD_HASH}
+  apiKey: ${WAYFINDER_API_KEY}
+  passwordHash: ${WAYFINDER_PASSWORD_HASH}
 ```
 
 See `data/settings.example.yaml` for the full schema, or [docs/CONFIG_SCHEMA.md](docs/CONFIG_SCHEMA.md) for detailed field documentation.

@@ -1,7 +1,7 @@
 services:
-  homepage:
+  wayfinder:
     build: .
-    container_name: homepage
+    container_name: wayfinder
     ports:
       - "3000:3000"
     volumes:

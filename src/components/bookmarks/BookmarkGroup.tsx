@@ -113,7 +113,7 @@ export default function BookmarkGroup({
                   <Draggable
                     key={`${group.name}-bm-${originalIndex}`}
                     draggableId={`${group.name}-bm-${originalIndex}`}
-                    index={originalIndex}
+                    index={i}
                     isDragDisabled={!editMode || !!activeTag}
                   >
                     {(dragProvided, dragSnapshot) => (

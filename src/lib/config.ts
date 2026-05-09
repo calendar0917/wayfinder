@@ -103,10 +103,10 @@ export function readConfig(): AppConfig {
       writeConfig(config);
     }
     // Overlay secrets from environment variables (env takes precedence, then fallback to default)
-    const apiKey = process.env.HOMEPAGE_API_KEY || config.settings.apiKey;
-    const passwordHash = process.env.HOMEPAGE_PASSWORD_HASH || config.settings.passwordHash || DEFAULT_PASSWORD_HASH;
-    const apiBase = process.env.HOMEPAGE_API_BASE || config.settings.apiBase;
-    const aiModel = process.env.HOMEPAGE_AI_MODEL || config.settings.aiModel;
+    const apiKey = process.env.WAYFINDER_API_KEY || config.settings.apiKey;
+    const passwordHash = process.env.WAYFINDER_PASSWORD_HASH || config.settings.passwordHash || DEFAULT_PASSWORD_HASH;
+    const apiBase = process.env.WAYFINDER_API_BASE || config.settings.apiBase;
+    const aiModel = process.env.WAYFINDER_AI_MODEL || config.settings.aiModel;
     config.settings.apiKey = apiKey;
     config.settings.passwordHash = passwordHash;
     config.settings.apiBase = apiBase;

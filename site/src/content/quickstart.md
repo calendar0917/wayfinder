@@ -5,8 +5,8 @@ title: 快速开始
 ## 快速开始
 
 ```bash
-git clone https://github.com/calendar0917/homepage.git
-cd homepage
+git clone https://github.com/calendar0917/wayfinder.git
+cd wayfinder
 cp .env.example .env.local
 cp data/settings.example.yaml data/settings.yaml
 echo "AUTH_SECRET=$(openssl rand -hex 32)" >> .env.local
@@ -19,9 +19,9 @@ docker compose up -d
 
 ```bash
 # 在 .env.local 中添加
-HOMEPAGE_API_KEY=sk-your-api-key
-HOMEPAGE_API_BASE=https://api.openai.com/v1
-HOMEPAGE_AI_MODEL=gpt-4o
+WAYFINDER_API_KEY=sk-your-api-key
+WAYFINDER_API_BASE=https://api.openai.com/v1
+WAYFINDER_AI_MODEL=gpt-4o
 ```
 
-更详细的配置说明请参阅 [README](https://github.com/calendar0917/homepage/blob/main/README.md)。
+更详细的配置说明请参阅 [README](https://github.com/calendar0917/wayfinder/blob/main/README.md)。

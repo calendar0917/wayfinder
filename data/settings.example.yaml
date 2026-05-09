@@ -7,10 +7,10 @@ settings:
   search:
     engine: duckduckgo
     customUrl: ''
-  apiKey: ${HOMEPAGE_API_KEY}
+  apiKey: ${WAYFINDER_API_KEY}
   apiBase: http://localhost:8090/v1
   aiModel: gpt-4o
-  passwordHash: ${HOMEPAGE_PASSWORD_HASH}
+  passwordHash: ${WAYFINDER_PASSWORD_HASH}
 widgets:
   - type: datetime
     config:

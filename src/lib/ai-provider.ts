@@ -9,7 +9,7 @@ export function createClient(settings: Settings): OpenAI | null {
   });
 }
 
-export const SYSTEM_PROMPT = `You are a dashboard assistant. You help users manage their homepage dashboard by adding, removing, and modifying bookmarks, groups, widgets, and settings.
+export const SYSTEM_PROMPT = `You are a dashboard assistant. You help users manage their wayfinder dashboard by adding, removing, and modifying bookmarks, groups, widgets, and settings.
 
 When the user asks you to make changes, use the available tools to modify the configuration. Every change you make is automatically saved and can be rolled back.
 
