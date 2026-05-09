@@ -130,6 +130,15 @@ export function writeConfig(config: AppConfig): void {
   fs.writeFileSync(CONFIG_FILE, yamlStr, "utf-8");
 }
 
+let writeQueue: Promise<void> = Promise.resolve();
+
+export function withWriteLock<T>(fn: () => T | Promise<T>): Promise<T> {
+  let release: () => void;
+  const prev = writeQueue;
+  writeQueue = new Promise<void>((r) => { release = r; });
+  return prev.then(() => fn()).finally(() => release!());
+}
+
 export function readConfigSafe(): SafeConfig {
   const config = readConfig();
   maskIntegrationHeaders(config.groups);

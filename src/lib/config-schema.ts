@@ -66,10 +66,46 @@ export const configSchema = z.object({
   settings: settingsSchema,
   widgets: z
     .array(
-      z.object({
-        type: z.enum(["datetime", "greeting", "weather", "resources", "logo", "notes", "search"]),
-        config: z.record(z.unknown()),
-      })
+      z.discriminatedUnion("type", [
+        z.object({
+          type: z.literal("datetime"),
+          config: z.object({
+            format: z.object({
+              dateStyle: z.string().optional(),
+              timeStyle: z.string().optional(),
+              locale: z.string().optional(),
+            }).optional(),
+            locale: z.string().optional(),
+          }).default({}),
+        }),
+        z.object({
+          type: z.literal("greeting"),
+          config: z.record(z.unknown()).default({}),
+        }),
+        z.object({
+          type: z.literal("weather"),
+          config: z.object({
+            location: z.string().optional(),
+            units: z.enum(["metric", "imperial"]).optional(),
+          }).default({}),
+        }),
+        z.object({
+          type: z.literal("resources"),
+          config: z.record(z.unknown()).default({}),
+        }),
+        z.object({
+          type: z.literal("logo"),
+          config: z.record(z.unknown()).default({}),
+        }),
+        z.object({
+          type: z.literal("notes"),
+          config: z.record(z.unknown()).default({}),
+        }),
+        z.object({
+          type: z.literal("search"),
+          config: z.record(z.unknown()).default({}),
+        }),
+      ])
     )
     .default([]),
   groups: z.array(groupSchema).default([]),

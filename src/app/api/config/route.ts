@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { readConfig, readConfigSafe, writeConfig } from "@/lib/config";
+import { readConfigSafe, writeConfig, withWriteLock } from "@/lib/config";
 import { configSchema } from "@/lib/config-schema";
-import { isAuthenticated } from "@/lib/auth";
 import { gitCommit } from "@/lib/git";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/csrf";
@@ -23,13 +22,9 @@ export async function PUT(request: NextRequest) {
     if (!checkCsrf(request)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const config = readConfig();
-    if (!(await isAuthenticated(config.settings.passwordHash))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
     const body = await request.json();
     const validated = configSchema.parse(body);
-    writeConfig(validated);
+    await withWriteLock(() => { writeConfig(validated); });
     gitCommit("manual: full config update");
     return NextResponse.json(readConfigSafe());
   } catch (e) {

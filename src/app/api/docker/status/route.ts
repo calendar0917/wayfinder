@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readConfig } from "@/lib/config";
-import { isAuthenticated } from "@/lib/auth";
-import { checkCsrf } from "@/lib/csrf";
 
 interface ContainerStatus {
   name: string;
@@ -12,9 +10,6 @@ interface ContainerStatus {
 export async function GET(request: NextRequest) {
   try {
     const config = readConfig();
-    if (!(await isAuthenticated(config.settings.passwordHash))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Check if Docker socket is available
     const socketPath = process.env.DOCKER_SOCKET || "/var/run/docker.sock";

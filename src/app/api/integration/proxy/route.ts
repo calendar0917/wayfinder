@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readConfig } from "@/lib/config";
-import { resolveEnvVar } from "@/lib/config";
-import { isAuthenticated } from "@/lib/auth";
+import { readConfig, resolveEnvVar } from "@/lib/config";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/csrf";
 import type { Group, Bookmark } from "@/types/config";
@@ -42,9 +40,6 @@ export async function POST(request: NextRequest) {
   }
 
   const config = readConfig();
-  if (!(await isAuthenticated(config.settings.passwordHash))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   try {
     const { bookmarkName, groupName } = await request.json();

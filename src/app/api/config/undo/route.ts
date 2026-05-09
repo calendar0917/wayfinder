@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execFileSync } from "child_process";
 import path from "path";
-import { readConfigSafe, writeConfig, readConfig } from "@/lib/config";
-import { isAuthenticated } from "@/lib/auth";
+import { readConfigSafe } from "@/lib/config";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/csrf";
 
@@ -16,11 +15,6 @@ export async function POST(request: NextRequest) {
   }
   if (!checkCsrf(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const config = readConfig();
-  if (!(await isAuthenticated(config.settings.passwordHash))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // In development, skip git operations to prevent HMR crashes

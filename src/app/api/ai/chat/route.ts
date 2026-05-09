@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readConfig, writeConfig } from "@/lib/config";
+import { readConfig, writeConfig, withWriteLock } from "@/lib/config";
 import { createClient, SYSTEM_PROMPT } from "@/lib/ai-provider";
 import { toolDefinitions, executeTool } from "@/lib/ai-tools";
-import { isAuthenticated } from "@/lib/auth";
 import { gitCommit } from "@/lib/git";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
@@ -15,9 +14,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
   const config = readConfig();
-  if (!(await isAuthenticated(config.settings.passwordHash))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const client = createClient(config.settings);
   if (!client) {
@@ -157,7 +153,9 @@ export async function POST(request: NextRequest) {
             }
 
             if (configModified) {
-              writeConfig(currentConfig);
+              await withWriteLock(() => {
+                writeConfig(currentConfig);
+              });
               gitCommit("ai: multi-tool");
               controller.enqueue(
                 encoder.encode(

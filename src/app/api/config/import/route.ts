@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readConfig, writeConfig, readConfigSafe } from "@/lib/config";
-import { isAuthenticated } from "@/lib/auth";
+import { readConfig, writeConfig, readConfigSafe, withWriteLock } from "@/lib/config";
 import { gitCommit } from "@/lib/git";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/csrf";
@@ -56,10 +55,6 @@ export async function POST(request: NextRequest) {
     if (!checkCsrf(request)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const config = readConfig();
-    if (!(await isAuthenticated(config.settings.passwordHash))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = await request.json();
     const mode = (body.mode as string) || "merge"; // "merge" or "replace"
@@ -67,29 +62,30 @@ export async function POST(request: NextRequest) {
 
     const normalized = normalizeImportGroups(importGroups);
 
-    if (mode === "replace") {
-      config.groups = normalized;
-    } else {
-      // Merge: add new groups, skip groups with same name
-      for (const group of normalized) {
-        const existing = config.groups.find((g) => g.name === group.name);
-        if (existing) {
-          // Merge bookmarks into existing group
-          for (const bookmark of group.bookmarks) {
-            const dup = existing.bookmarks.find(
-              (b) => b.url.toLowerCase().replace(/\/+$/, "") === bookmark.url.toLowerCase().replace(/\/+$/, "")
-            );
-            if (!dup) {
-              existing.bookmarks.push(bookmark);
+    await withWriteLock(() => {
+      const config = readConfig();
+      if (mode === "replace") {
+        config.groups = normalized;
+      } else {
+        // Merge: add new groups, skip groups with same name
+        for (const group of normalized) {
+          const existing = config.groups.find((g) => g.name === group.name);
+          if (existing) {
+            for (const bookmark of group.bookmarks) {
+              const dup = existing.bookmarks.find(
+                (b) => b.url.toLowerCase().replace(/\/+$/, "") === bookmark.url.toLowerCase().replace(/\/+$/, "")
+              );
+              if (!dup) {
+                existing.bookmarks.push(bookmark);
+              }
             }
+          } else {
+            config.groups.push(group);
           }
-        } else {
-          config.groups.push(group);
         }
       }
-    }
-
-    writeConfig(config);
+      writeConfig(config);
+    });
     gitCommit("import: bookmarks imported");
 
     return NextResponse.json({

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readConfig, writeConfig, readConfigSafe } from "@/lib/config";
+import { readConfig, writeConfig, readConfigSafe, withWriteLock } from "@/lib/config";
 import { executeTool } from "@/lib/ai-tools";
-import { isAuthenticated, hashPassword, setAuthCookie } from "@/lib/auth";
+import { hashPassword, setAuthCookie } from "@/lib/auth";
 import { gitCommit } from "@/lib/git";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/csrf";
@@ -15,10 +15,6 @@ export async function POST(request: NextRequest) {
     if (!checkCsrf(request)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const config = readConfig();
-    if (!(await isAuthenticated(config.settings.passwordHash))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const { operation, arguments: args } = await request.json();
     if (!operation) {
@@ -27,28 +23,30 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const result = executeTool(operation, args || {}, config);
 
-    if (result.success) {
-      // Hash password if set_password was called
-      if (
-        operation === "set_password" &&
-        result.config.settings.passwordHash.startsWith("HASH:")
-      ) {
-        const plain = result.config.settings.passwordHash.slice(5);
-        result.config.settings.passwordHash = await hashPassword(plain);
-        // Auto-login after setting password so the user doesn't lock themselves out
-        await setAuthCookie();
+    return await withWriteLock(async () => {
+      const config = readConfig();
+      const result = executeTool(operation, args || {}, config);
+
+      if (result.success) {
+        if (
+          operation === "set_password" &&
+          result.config.settings.passwordHash.startsWith("HASH:")
+        ) {
+          const plain = result.config.settings.passwordHash.slice(5);
+          result.config.settings.passwordHash = await hashPassword(plain);
+          await setAuthCookie();
+        }
+        if (operation !== "reload_config") {
+          writeConfig(result.config);
+          gitCommit(`edit: ${operation}`);
+        }
       }
-      if (operation !== "reload_config") {
-        writeConfig(result.config);
-        gitCommit(`edit: ${operation}`);
-      }
-    }
-    return NextResponse.json({
-      success: result.success,
-      result: result.result,
-      config: readConfigSafe(),
+      return NextResponse.json({
+        success: result.success,
+        result: result.result,
+        config: readConfigSafe(),
+      });
     });
   } catch (e) {
     return NextResponse.json(

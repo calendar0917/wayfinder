@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import type { Bookmark } from "@/types/config";
+import { useState, useCallback, useMemo } from "react";
+import type { Bookmark, Group } from "@/types/config";
 import WidgetRow from "@/components/layout/WidgetRow";
 import BookmarkGrid from "@/components/bookmarks/BookmarkGrid";
 import BookmarkEditModal from "@/components/bookmarks/BookmarkEditModal";
@@ -18,160 +18,8 @@ import { useStatusCheck } from "@/hooks/useStatusCheck";
 import { useDockerStatus } from "@/hooks/useDockerStatus";
 import { useIntegration } from "@/hooks/useIntegration";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
-import type { Group, SafeConfig, WidgetConfig } from "@/types/config";
 
 type Theme = "auto" | "light" | "dark";
-
-function deepClone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
-}
-
-function predictConfig(
-  config: SafeConfig,
-  operation: string,
-  args: Record<string, unknown>
-): SafeConfig | null {
-  const next = deepClone(config);
-  try {
-    switch (operation) {
-      case "add_bookmark": {
-        const groupName = (args.group as string) || next.groups[0]?.name;
-        const group = next.groups.find((g) => g.name === groupName);
-        if (!group) return null;
-        if (!group.bookmarks) group.bookmarks = [];
-        group.bookmarks.push({
-          name: args.name as string,
-          url: args.url as string,
-          icon: (args.icon as string) || "",
-          description: (args.description as string) || "",
-          shortcut: "",
-          tags: (args.tags as string[]) || [],
-          server: (args.server as string) || "",
-          container: (args.container as string) || "",
-          statusCheck: (args.statusCheck as boolean) || false,
-        });
-        return next;
-      }
-      case "remove_bookmark": {
-        for (const g of next.groups) {
-          const idx = g.bookmarks?.findIndex((b) => b.name === args.name) ?? -1;
-          if (idx >= 0) { g.bookmarks.splice(idx, 1); return next; }
-        }
-        return null;
-      }
-      case "update_bookmark": {
-        for (const g of next.groups) {
-          const b = g.bookmarks?.find((b) => b.name === args.name);
-          if (b) {
-            if (args.newName) b.name = args.newName as string;
-            if (args.url) b.url = args.url as string;
-            if (args.icon !== undefined) b.icon = args.icon as string;
-            if (args.description !== undefined) b.description = args.description as string;
-            if (args.shortcut !== undefined) b.shortcut = args.shortcut as string;
-            if (args.tags !== undefined) b.tags = args.tags as string[];
-            if (args.server !== undefined) b.server = args.server as string;
-            if (args.container !== undefined) b.container = args.container as string;
-            if (args.statusCheck !== undefined) b.statusCheck = args.statusCheck as boolean;
-            return next;
-          }
-        }
-        return null;
-      }
-      case "add_group": {
-        next.groups.push({
-          name: args.name as string,
-          icon: "",
-          collapsed: false,
-          bookmarks: [],
-          groups: [],
-        });
-        return next;
-      }
-      case "remove_group": {
-        const idx = next.groups.findIndex((g) => g.name === args.name);
-        if (idx >= 0) { next.groups.splice(idx, 1); return next; }
-        return null;
-      }
-      case "rename_group": {
-        const g = next.groups.find((g) => g.name === args.oldName);
-        if (g) { g.name = args.newName as string; return next; }
-        return null;
-      }
-      case "reorder_bookmark": {
-        const group = next.groups.find((g) => g.name === args.group);
-        if (!group?.bookmarks) return null;
-        const from = args.fromIndex as number;
-        const to = args.toIndex as number;
-        const [bm] = group.bookmarks.splice(from, 1);
-        group.bookmarks.splice(to, 0, bm);
-        return next;
-      }
-      case "change_theme": {
-        next.settings.theme = args.theme as Theme;
-        return next;
-      }
-      case "update_title": {
-        next.settings.title = args.title as string;
-        return next;
-      }
-      case "update_search": {
-        if (args.engine) next.settings.search.engine = args.engine as string;
-        if (args.customUrl !== undefined) next.settings.search.customUrl = args.customUrl as string;
-        return next;
-      }
-      case "update_locale": {
-        next.settings.locale = args.locale as string;
-        return next;
-      }
-      case "add_widget": {
-        next.widgets.push({ type: args.type as WidgetConfig["type"], config: (args.config as Record<string, unknown>) || {} });
-        return next;
-      }
-      case "remove_widget": {
-        if (typeof args.index === "number") {
-          if (args.index >= 0 && args.index < next.widgets.length) {
-            next.widgets.splice(args.index, 1);
-            return next;
-          }
-        } else if (args.type) {
-          const idx = next.widgets.findIndex((w) => w.type === args.type);
-          if (idx >= 0) { next.widgets.splice(idx, 1); return next; }
-        }
-        return null;
-      }
-      case "configure_integration": {
-        for (const g of next.groups) {
-          const b = g.bookmarks?.find((b) => b.name === args.name);
-          if (b) {
-            b.integration = {
-              endpoint: args.endpoint as string,
-              headers: (args.headers as Record<string, string>) || {},
-              fields: (args.fields as Array<{ path: string; label?: string }>).map((f) => ({ path: f.path, label: f.label || "" })),
-              display: (args.display as "inline" | "badge" | "card") || "inline",
-              pollInterval: typeof args.pollInterval === "number" ? Math.max(5, Math.min(3600, args.pollInterval)) : 60,
-            };
-            return next;
-          }
-        }
-        return null;
-      }
-      case "remove_integration": {
-        for (const g of next.groups) {
-          const b = g.bookmarks?.find((b) => b.name === args.name);
-          if (b) {
-            b.integration = undefined;
-            return next;
-          }
-        }
-        return null;
-      }
-      default:
-        return null;
-    }
-  } catch {
-    return null;
-  }
-}
 
 function flattenBookmarks(groups: Group[]): Bookmark[] {
   const result: Bookmark[] = [];
@@ -186,7 +34,7 @@ function flattenBookmarks(groups: Group[]): Bookmark[] {
 }
 
 export default function Dashboard() {
-  const { config, setConfig, authenticated, setAuthenticated, canEdit, fetchConfig, applyTheme } = useConfig();
+  const { config, authenticated, setAuthenticated, canEdit, fetchConfig, applyTheme } = useConfig();
 
   const [editMode, setEditMode] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -206,10 +54,10 @@ export default function Dashboard() {
   // Add group modal
   const [addGroupOpen, setAddGroupOpen] = useState(false);
 
-  const { mutate, optimisticMutate } = useMutate({ setConfig, setAuthenticated, applyTheme, fetchConfig });
+  const { mutate } = useMutate({ setAuthenticated, fetchConfig });
 
-  // Flatten all bookmarks recursively for status checking
-  const allBookmarks = config ? flattenBookmarks(config.groups) : [];
+  // Flatten all bookmarks recursively for status checking (memoized)
+  const allBookmarks = useMemo(() => config ? flattenBookmarks(config.groups) : [], [config?.groups]);
   const { statuses } = useStatusCheck(allBookmarks);
   const { statuses: dockerStatuses } = useDockerStatus(allBookmarks);
   const integrationBookmarks = allBookmarks.filter((b) => b.integration).map((b) => ({ key: b.name, config: b.integration! }));
@@ -231,32 +79,23 @@ export default function Dashboard() {
 
   const handleDeleteBookmark = useCallback(
     async (groupName: string, bookmarkName: string) => {
-      if (!config) return;
-      const predicted = predictConfig(config, "remove_bookmark", { name: bookmarkName, group: groupName });
-      if (predicted) await optimisticMutate("remove_bookmark", { name: bookmarkName, group: groupName }, predicted);
-      else await mutate("remove_bookmark", { name: bookmarkName, group: groupName });
+      await mutate("remove_bookmark", { name: bookmarkName, group: groupName });
     },
-    [config, mutate, optimisticMutate]
+    [mutate]
   );
 
   const handleDeleteGroup = useCallback(
     async (groupName: string) => {
-      if (!config) return;
-      const predicted = predictConfig(config, "remove_group", { name: groupName });
-      if (predicted) await optimisticMutate("remove_group", { name: groupName }, predicted);
-      else await mutate("remove_group", { name: groupName });
+      await mutate("remove_group", { name: groupName });
     },
-    [config, mutate, optimisticMutate]
+    [mutate]
   );
 
   const handleReorderBookmark = useCallback(
     async (groupName: string, fromIndex: number, toIndex: number) => {
-      if (!config) return;
-      const predicted = predictConfig(config, "reorder_bookmark", { group: groupName, fromIndex, toIndex });
-      if (predicted) await optimisticMutate("reorder_bookmark", { group: groupName, fromIndex, toIndex }, predicted);
-      else await mutate("reorder_bookmark", { group: groupName, fromIndex, toIndex });
+      await mutate("reorder_bookmark", { group: groupName, fromIndex, toIndex });
     },
-    [config, mutate, optimisticMutate]
+    [mutate]
   );
 
   const handleUndo = useCallback(async () => {
@@ -299,7 +138,7 @@ export default function Dashboard() {
 
   const handleBookmarkModalSave = useCallback(
     async (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean; integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string }>; display: string; pollInterval: number } }) => {
-      if (!bookmarkModalGroup || !config) return;
+      if (!bookmarkModalGroup) return;
       setBookmarkModalOpen(false);
       if (bookmarkModalMode === "edit" && bookmarkModalInitial?.name) {
         const args = {
@@ -312,23 +151,10 @@ export default function Dashboard() {
           tags: JSON.stringify(data.tags) !== JSON.stringify(bookmarkModalInitial.tags) ? data.tags : undefined,
           statusCheck: data.statusCheck !== bookmarkModalInitial.statusCheck ? data.statusCheck : undefined,
         };
-        const predicted = predictConfig(config, "update_bookmark", args);
-        if (predicted) await optimisticMutate("update_bookmark", args, predicted);
-        else await mutate("update_bookmark", args);
-        // Handle integration changes
+        await mutate("update_bookmark", args);
         const hadIntegration = !!bookmarkModalInitial.integration;
         const hasIntegration = !!data.integration;
-        if (hasIntegration && !hadIntegration) {
-          await mutate("configure_integration", {
-            name: data.name,
-            group: bookmarkModalGroup,
-            endpoint: data.integration!.endpoint,
-            headers: data.integration!.headers,
-            fields: data.integration!.fields,
-            display: data.integration!.display,
-            pollInterval: data.integration!.pollInterval,
-          });
-        } else if (hasIntegration && hadIntegration) {
+        if (hasIntegration) {
           await mutate("configure_integration", {
             name: data.name,
             group: bookmarkModalGroup,
@@ -343,10 +169,7 @@ export default function Dashboard() {
         }
       } else {
         const args = { ...data, group: bookmarkModalGroup };
-        const predicted = predictConfig(config, "add_bookmark", args);
-        if (predicted) await optimisticMutate("add_bookmark", args, predicted);
-        else await mutate("add_bookmark", args);
-        // Configure integration after bookmark is added
+        await mutate("add_bookmark", args);
         if (data.integration) {
           await mutate("configure_integration", {
             name: data.name,
@@ -360,7 +183,7 @@ export default function Dashboard() {
         }
       }
     },
-    [bookmarkModalGroup, bookmarkModalMode, bookmarkModalInitial, config, mutate, optimisticMutate]
+    [bookmarkModalGroup, bookmarkModalMode, bookmarkModalInitial, mutate]
   );
 
   // --- Add group handler ---
@@ -370,27 +193,16 @@ export default function Dashboard() {
 
   const handleAddGroupSubmit = useCallback(async (name: string) => {
     setAddGroupOpen(false);
-    if (!config) return;
-    const predicted = predictConfig(config, "add_group", { name });
-    if (predicted) await optimisticMutate("add_group", { name }, predicted);
-    else await mutate("add_group", { name });
-  }, [config, mutate, optimisticMutate]);
+    await mutate("add_group", { name });
+  }, [mutate]);
 
   const handleSettingsSave = useCallback(
     async (mutations: { operation: string; arguments: Record<string, unknown> }[]) => {
       for (const m of mutations) {
-        if (!config) { await mutate(m.operation, m.arguments); continue; }
-        const predicted = predictConfig(config, m.operation, m.arguments);
-        if (predicted) {
-          const result = await optimisticMutate(m.operation, m.arguments, predicted);
-          if (m.operation === "set_password" && result.success) await fetchConfig();
-        } else {
-          const result = await mutate(m.operation, m.arguments);
-          if (m.operation === "set_password" && result.success) await fetchConfig();
-        }
+        await mutate(m.operation, m.arguments);
       }
     },
-    [config, mutate, optimisticMutate, fetchConfig]
+    [mutate]
   );
 
   const handleLogout = useCallback(async () => {

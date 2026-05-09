@@ -15,10 +15,24 @@ export interface Settings {
   passwordHash: string;
 }
 
-export interface WidgetConfig {
-  type: "datetime" | "greeting" | "weather" | "resources" | "logo" | "notes" | "search";
-  config: Record<string, unknown>;
+export interface DateTimeConfig {
+  format?: { dateStyle?: string; timeStyle?: string; locale?: string };
+  locale?: string;
 }
+
+export interface WeatherConfig {
+  location?: string;
+  units?: "metric" | "imperial";
+}
+
+export type WidgetConfig =
+  | { type: "datetime"; config: DateTimeConfig }
+  | { type: "greeting"; config: Record<string, unknown> }
+  | { type: "weather"; config: WeatherConfig }
+  | { type: "resources"; config: Record<string, unknown> }
+  | { type: "logo"; config: Record<string, unknown> }
+  | { type: "notes"; config: Record<string, unknown> }
+  | { type: "search"; config: Record<string, unknown> };
 
 export interface IntegrationField {
   path: string;

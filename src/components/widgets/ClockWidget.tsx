@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import WidgetCard from "@/components/ui/WidgetCard";
+import type { DateTimeConfig } from "@/types/config";
 
 interface ClockWidgetProps {
-  config: { format?: { dateStyle?: string; timeStyle?: string; locale?: string } };
+  config: DateTimeConfig;
 }
 
 export default function ClockWidget({ config }: ClockWidgetProps) {
   const [now, setNow] = useState<Date | null>(null);
-  const locale = config.format?.locale || "en";
+  const locale = config.locale || config.format?.locale || "en";
 
   useEffect(() => {
     setNow(new Date());
@@ -26,10 +27,10 @@ export default function ClockWidget({ config }: ClockWidgetProps) {
   }
 
   const dateStr = now.toLocaleDateString(locale, {
-    dateStyle: (config.format?.dateStyle as any) || "full",
+    dateStyle: (config.format?.dateStyle as Intl.DateTimeFormatOptions["dateStyle"]) || "full",
   });
   const timeStr = now.toLocaleTimeString(locale, {
-    timeStyle: (config.format?.timeStyle as any) || "short",
+    timeStyle: (config.format?.timeStyle as Intl.DateTimeFormatOptions["timeStyle"]) || "short",
   });
 
   return (
