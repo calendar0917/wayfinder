@@ -1,7 +1,15 @@
 {"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
 {"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
 {"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
-{"file": "src/types/config.ts", "reason": "WidgetConfig/Settings types for new fields"}
-{"file": "src/lib/config-schema.ts", "reason": "Zod schemas for new config fields"}
-{"file": "src/lib/ai-tools.ts", "reason": "AI tool definitions and executeTool"}
-{"file": "src/lib/weather.ts", "reason": "Existing weather backend"}
+{"file": "src/types/config.ts", "reason": "Core types: IntegrationField, Bookmark, Group, Settings, AppConfig"}
+{"file": "src/lib/config-schema.ts", "reason": "Schema validation for config fields"}
+{"file": "src/components/bookmarks/IntegrationDisplay.tsx", "reason": "Integration display rendering - needs type-aware rendering"}
+{"file": "src/components/bookmarks/BookmarkEditModal.tsx", "reason": "Bookmark/integration editing UI"}
+{"file": "src/components/bookmarks/BookmarkCard.tsx", "reason": "Bookmark card rendering - tags display"}
+{"file": "src/components/editing/SettingsDialog.tsx", "reason": "Settings dialog - import sections, page management"}
+{"file": "src/components/layout/Dashboard.tsx", "reason": "Dashboard layout - tab bar for pages"}
+{"file": "src/lib/ai-tools.ts", "reason": "AI tool definitions - add page management ops"}
+{"file": "src/components/ai/AISidePanel.tsx", "reason": "AI panel - conversation persistence"}
+{"file": "src/app/api/config/import/route.ts", "reason": "Import API - existing import logic"}
+{"file": "src/app/api/docker/status/route.ts", "reason": "Docker status API"}
+{"file": "src/hooks/useDockerStatus.ts", "reason": "Docker status hook"}

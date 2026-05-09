@@ -35,9 +35,12 @@ export type WidgetConfig =
   | { type: "notes"; config: Record<string, unknown> }
   | { type: "search"; config: Record<string, unknown> };
 
+export type IntegrationFieldType = "text" | "number" | "percent" | "status" | "bytes" | "duration" | "bitrate" | "temperature";
+
 export interface IntegrationField {
   path: string;
   label: string;
+  type?: IntegrationFieldType;
 }
 
 export interface BookmarkIntegration {
@@ -69,11 +72,17 @@ export interface Group {
   groups: Group[];
 }
 
+export interface Page {
+  name: string;
+  groups: string[];
+}
+
 export interface AppConfig {
   version: number;
   settings: Settings;
   widgets: WidgetConfig[];
   groups: Group[];
+  pages?: Page[];
 }
 
 type Masked = "***" | "";

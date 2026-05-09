@@ -3,6 +3,7 @@ import { z } from "zod";
 const integrationFieldSchema = z.object({
   path: z.string().min(1),
   label: z.string().optional().default(""),
+  type: z.enum(["text", "number", "percent", "status", "bytes", "duration", "bitrate", "temperature"]).optional().default("text"),
 });
 
 const integrationSchema = z.object({
@@ -110,6 +111,10 @@ export const configSchema = z.object({
     )
     .default([]),
   groups: z.array(groupSchema).default([]),
+  pages: z.array(z.object({
+    name: z.string().min(1),
+    groups: z.array(z.string()),
+  })).optional(),
 });
 
 export const CURRENT_CONFIG_VERSION = 5;

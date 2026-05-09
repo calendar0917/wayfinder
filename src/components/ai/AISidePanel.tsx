@@ -63,7 +63,13 @@ function ToolCard({ name, success, result }: { name: string; success: boolean; r
 }
 
 export default function AISidePanel({ open, onClose, onConfigUpdate, authenticated, initialMessage }: AISidePanelProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      if (typeof window === "undefined") return [];
+      const saved = localStorage.getItem("ai-conversation");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -76,6 +82,19 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
 
   // Keep ref in sync with state
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // Persist conversation to localStorage
+  useEffect(() => {
+    try {
+      const json = JSON.stringify(messages);
+      if (json.length > 100_000) {
+        const trimmed = messages.slice(-50);
+        localStorage.setItem("ai-conversation", JSON.stringify(trimmed));
+      } else {
+        localStorage.setItem("ai-conversation", json);
+      }
+    } catch { /* quota exceeded: silently ignore */ }
+  }, [messages]);
 
   useEffect(() => {
     if (open && authenticated) inputRef.current?.focus();
@@ -246,6 +265,7 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
       abortControllerRef.current?.abort();
     }
     setMessages([]);
+    try { localStorage.removeItem("ai-conversation"); } catch { /* ignore */ }
     setInput("");
     toast("Conversation cleared", "success");
   }, [streaming, toast]);

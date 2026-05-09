@@ -3,21 +3,27 @@
 import { useState, useEffect, useRef } from "react";
 import type { Settings } from "@/types/config";
 import { useToast } from "@/components/ui/ToastProvider";
+import { parseNetscapeBookmark } from "@/lib/bookmark-parser";
+import { normalizeHomepageConfig, normalizeDashyConfig } from "@/lib/import-normalizers";
 
 interface SettingsDialogProps {
   open: boolean;
   onClose: () => void;
   settings: Settings;
   onSave: (changes: { operation: string; arguments: Record<string, unknown> }[]) => void;
+  onImport?: () => void;
   onLogout?: () => void;
   authenticated: boolean;
 }
+
+type ImportFormat = "json" | "browser" | "homepage" | "dashy";
 
 export default function SettingsDialog({
   open,
   onClose,
   settings,
   onSave,
+  onImport,
   onLogout,
   authenticated,
 }: SettingsDialogProps) {
@@ -35,6 +41,7 @@ export default function SettingsDialog({
   const [customCss, setCustomCss] = useState(settings.customCss || "");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [importFormat, setImportFormat] = useState<ImportFormat>("json");
 
   useEffect(() => {
     setTitle(settings.title);
@@ -48,6 +55,7 @@ export default function SettingsDialog({
     setAiModel(settings.apiKey === "***" ? settings.aiModel : "");
     setCustomCss(settings.customCss || "");
     setNewPassword("");
+    setImportFormat("json");
   }, [settings, open]);
 
   async function handleSave() {
@@ -55,7 +63,6 @@ export default function SettingsDialog({
     const mutations: { operation: string; arguments: Record<string, unknown> }[] = [];
 
     if (title !== settings.title) {
-      // Title needs full config PUT, handled separately
       mutations.push({ operation: "update_title", arguments: { title } });
     }
     if (columns !== settings.layout.columns) {
@@ -90,6 +97,61 @@ export default function SettingsDialog({
     setSaving(false);
     onClose();
   }
+
+  async function handleImportFile(file: File) {
+    try {
+      const text = await file.text();
+
+      if (importFormat === "json") {
+        const data = JSON.parse(text);
+        await doImport(data.groups, "merge");
+      } else if (importFormat === "browser") {
+        const groups = parseNetscapeBookmark(text);
+        if (groups.length === 0) {
+          toast("No bookmarks found in HTML file", "error");
+          return;
+        }
+        const totalBookmarks = groups.reduce((acc, g) => acc + g.bookmarks.length, 0);
+        await doImport(groups, "merge");
+        toast(`Imported ${totalBookmarks} bookmarks from ${groups.length} groups`, "success");
+      } else if (importFormat === "homepage") {
+        const groups = normalizeHomepageConfig(text);
+        if (groups.length === 0) {
+          toast("No services found in Homepage YAML", "error");
+          return;
+        }
+        await doImport(groups, "merge");
+      } else if (importFormat === "dashy") {
+        const groups = normalizeDashyConfig(text);
+        if (groups.length === 0) {
+          toast("No sections found in Dashy YAML", "error");
+          return;
+        }
+        await doImport(groups, "merge");
+      }
+    } catch (e) {
+      toast(`Import failed: ${e instanceof Error ? e.message : "Invalid file"}`, "error");
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function doImport(groups: unknown[], mode: string) {
+    const res = await fetch("/api/config/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groups, mode }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      toast(result.result, "success");
+      onSave([]);
+      onImport?.();
+    } else {
+      toast(result.error || "Import failed", "error");
+    }
+  }
+
+  const fileAccept = importFormat === "browser" ? ".html,.htm" : importFormat === "json" ? ".json" : ".yaml,.yml";
 
   if (!open) return null;
 
@@ -297,36 +359,31 @@ export default function SettingsDialog({
                 >
                   Export JSON
                 </button>
+                <select
+                  value={importFormat}
+                  onChange={(e) => setImportFormat(e.target.value as ImportFormat)}
+                  className="px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none"
+                >
+                  <option value="json">JSON (native)</option>
+                  <option value="browser">Browser Bookmarks (HTML)</option>
+                  <option value="homepage">Homepage (YAML)</option>
+                  <option value="dashy">Dashy (YAML)</option>
+                </select>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="px-4 py-2 bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--surface-hover)] hover:border-[var(--border-hover)]"
                 >
-                  Import JSON
+                  Import
                 </button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".json"
+                  accept={fileAccept}
                   className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    try {
-                      const text = await file.text();
-                      const data = JSON.parse(text);
-                      const res = await fetch("/api/config/import", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ groups: data.groups, mode: "merge" }),
-                      });
-                      const result = await res.json();
-                      if (result.success) {
-                        toast(result.result, "success");
-                        onSave([]);
-                      } else {
-                        toast(result.error || "Import failed", "error");
-                      }
-                    } catch { toast("Invalid JSON file", "error"); }
+                    await handleImportFile(file);
                     e.target.value = "";
                   }}
                 />

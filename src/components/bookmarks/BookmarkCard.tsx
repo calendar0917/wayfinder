@@ -78,6 +78,7 @@ export default function BookmarkCard({
             <IntegrationDisplay
               fields={integrationResult.fields}
               display="badge"
+              fieldTypes={Object.fromEntries(bookmark.integration.fields.map((f) => [f.path, f.type || "text"]))}
               loading={integrationResult.loading}
               error={integrationResult.error}
             />
@@ -88,6 +89,7 @@ export default function BookmarkCard({
             <IntegrationDisplay
               fields={integrationResult.fields}
               display="inline"
+              fieldTypes={Object.fromEntries(bookmark.integration.fields.map((f) => [f.path, f.type || "text"]))}
               loading={integrationResult.loading}
               error={integrationResult.error}
             />
@@ -109,9 +111,17 @@ export default function BookmarkCard({
           <IntegrationDisplay
             fields={integrationResult.fields}
             display="card"
+            fieldTypes={Object.fromEntries(bookmark.integration.fields.map((f) => [f.path, f.type || "text"]))}
             loading={integrationResult.loading}
             error={integrationResult.error}
           />
+        )}
+        {bookmark.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {bookmark.tags.map((tag) => (
+              <span key={tag} className="text-[0.6rem] px-1.5 py-0.5 rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">{tag}</span>
+            ))}
+          </div>
         )}
       </div>
       {bookmark.shortcut && !editMode && (

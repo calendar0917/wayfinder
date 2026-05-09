@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import type { Group, Bookmark } from "@/types/config";
 import type { StatusResult } from "@/hooks/useStatusCheck";
 import type { DockerStatusResult } from "@/hooks/useDockerStatus";
@@ -22,6 +23,20 @@ interface BookmarkGridProps {
   integrationResults?: Map<string, IntegrationResult>;
 }
 
+function collectAllTags(groups: Group[]): string[] {
+  const tagSet = new Set<string>();
+  function walk(groups: Group[]) {
+    for (const g of groups) {
+      for (const b of g.bookmarks) {
+        for (const t of b.tags) tagSet.add(t);
+      }
+      if (g.groups) walk(g.groups);
+    }
+  }
+  walk(groups);
+  return Array.from(tagSet).sort();
+}
+
 export default function BookmarkGrid({
   groups,
   columns,
@@ -36,6 +51,10 @@ export default function BookmarkGrid({
   dockerStatuses,
   integrationResults,
 }: BookmarkGridProps) {
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  const allTags = useMemo(() => collectAllTags(groups), [groups]);
+
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
     const groupName = result.source.droppableId;
@@ -46,6 +65,24 @@ export default function BookmarkGrid({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
+      {allTags.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <span className="text-xs font-medium text-[var(--text-tertiary)] shrink-0">Tags</span>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+              className={`text-[0.7rem] px-2 py-0.5 rounded-full cursor-pointer border-none transition-all duration-150 whitespace-nowrap ${
+                activeTag === tag
+                  ? "bg-[var(--accent)] text-white"
+                  : "bg-[var(--accent-soft)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
       <div
         className="bookmark-grid grid gap-4"
         style={{ "--columns": columns } as React.CSSProperties}
@@ -62,6 +99,7 @@ export default function BookmarkGrid({
             statuses={statuses}
             dockerStatuses={dockerStatuses}
             integrationResults={integrationResults}
+            activeTag={activeTag}
           />
         ))}
         {editMode && onAddGroup && (

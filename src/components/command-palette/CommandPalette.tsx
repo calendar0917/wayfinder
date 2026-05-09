@@ -13,11 +13,11 @@ interface CommandPaletteProps {
   onOpenAI?: (message: string) => void;
 }
 
-function flattenBookmarks(groups: Group[], prefix = ""): { name: string; url: string; group: string }[] {
-  const results: { name: string; url: string; group: string }[] = [];
+function flattenBookmarks(groups: Group[], prefix = ""): { name: string; url: string; group: string; tags: string[] }[] {
+  const results: { name: string; url: string; group: string; tags: string[] }[] = [];
   for (const g of groups) {
     for (const b of g.bookmarks ?? []) {
-      results.push({ name: b.name, url: b.url, group: `${prefix}${g.name}` });
+      results.push({ name: b.name, url: b.url, group: `${prefix}${g.name}`, tags: b.tags || [] });
     }
     if (g.groups) {
       results.push(...flattenBookmarks(g.groups, `${prefix}${g.name}/`));
@@ -59,7 +59,8 @@ export default function CommandPalette({
     ? allBookmarks.filter(
         (b) =>
           b.name.toLowerCase().includes(query.toLowerCase()) ||
-          b.url.toLowerCase().includes(query.toLowerCase())
+          b.url.toLowerCase().includes(query.toLowerCase()) ||
+          b.tags.some((t) => t.toLowerCase().includes(query.toLowerCase()))
       )
     : allBookmarks;
 

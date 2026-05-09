@@ -1,5 +1,10 @@
 {"file": ".claude/commands/trellis/finish-work.md", "reason": "Finish work checklist"}
 {"file": ".claude/commands/trellis/check.md", "reason": "Code quality check spec"}
-{"file": "src/types/config.ts", "reason": "Verify type consistency"}
-{"file": "src/lib/config-schema.ts", "reason": "Verify schema consistency"}
+{"file": "src/types/config.ts", "reason": "Verify type changes"}
+{"file": "src/lib/config-schema.ts", "reason": "Verify schema changes"}
+{"file": "src/components/bookmarks/IntegrationDisplay.tsx", "reason": "Verify rendering logic"}
+{"file": "src/components/bookmarks/BookmarkEditModal.tsx", "reason": "Verify edit modal changes"}
+{"file": "src/components/bookmarks/BookmarkCard.tsx", "reason": "Verify tag display"}
+{"file": "src/components/editing/SettingsDialog.tsx", "reason": "Verify settings changes"}
+{"file": "src/components/layout/Dashboard.tsx", "reason": "Verify tab bar"}
 {"file": "src/lib/ai-tools.ts", "reason": "Verify AI tool definitions"}

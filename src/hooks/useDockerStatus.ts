@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import type { Bookmark } from "@/types/config";
 
 interface ContainerStatus {
+  id: string;
   name: string;
   state: string;
   status: string;

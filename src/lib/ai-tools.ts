@@ -1,5 +1,7 @@
 import { readConfig } from "./config";
-import type { AppConfig, Bookmark, Group } from "@/types/config";
+import type { AppConfig, Bookmark, Group, Page, IntegrationFieldType } from "@/types/config";
+
+const VALID_FIELD_TYPES: IntegrationFieldType[] = ["text", "number", "percent", "status", "bytes", "duration", "bitrate", "temperature"];
 
 interface ToolResult {
   success: boolean;
@@ -370,6 +372,7 @@ export const toolDefinitions = [
               properties: {
                 path: { type: "string", description: "Dot-path to extract, e.g. 'data.playback.item.title'" },
                 label: { type: "string", description: "Optional label prefix" },
+                type: { type: "string", enum: ["text", "number", "percent", "status", "bytes", "duration", "bitrate", "temperature"], description: "Field display type (default: text)" },
               },
               required: ["path"],
             },
@@ -431,6 +434,51 @@ export const toolDefinitions = [
           css: { type: "string", description: "Complete CSS string to apply" },
         },
         required: ["css"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "add_page",
+      description: "Add a new page tab to the dashboard. Pages let you organize groups into different tabs.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Page name" },
+          groups: { type: "array", items: { type: "string" }, description: "Group names to show on this page" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "remove_page",
+      description: "Remove a page tab from the dashboard",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Page name to remove" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_page",
+      description: "Update a page tab's name or assigned groups",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Current page name" },
+          newName: { type: "string", description: "New page name (optional)" },
+          groups: { type: "array", items: { type: "string" }, description: "New list of group names for this page" },
+        },
+        required: ["name"],
       },
     },
   },
@@ -892,16 +940,17 @@ export function executeTool(
       found.bookmark.integration = {
         endpoint: args.endpoint as string,
         headers: (args.headers as Record<string, string>) || {},
-        fields: (args.fields as Array<{ path: string; label?: string }>).map((f) => ({
+        fields: (args.fields as Array<{ path: string; label?: string; type?: string }>).map((f) => ({
           path: f.path,
           label: f.label || "",
+          type: (VALID_FIELD_TYPES.includes(f.type as IntegrationFieldType) ? f.type : "text") as IntegrationFieldType,
         })),
         display: (args.display as "inline" | "badge" | "card") || "inline",
         pollInterval: typeof args.pollInterval === "number" ? Math.max(5, Math.min(3600, args.pollInterval)) : 60,
       };
       return {
         success: true,
-        result: `Integration configured on '${args.name}': ${found.bookmark.integration.display} display, ${found.bookmark.integration.fields.length} field(s), polling every ${found.bookmark.integration.pollInterval}s`,
+        result: `Integration configured on '${args.name}': ${found.bookmark.integration!.display} display, ${found.bookmark.integration!.fields.length} field(s), polling every ${found.bookmark.integration!.pollInterval}s`,
         config,
       };
     }
@@ -954,6 +1003,40 @@ export function executeTool(
       const sanitized = css.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script>/gi, "");
       config.settings.customCss = sanitized;
       return { success: true, result: `Custom CSS updated (${sanitized.length} chars)`, config };
+    }
+
+    case "add_page": {
+      const pageName = (args.name as string)?.trim();
+      if (!pageName) return { success: false, result: "Page name is required", config };
+      if (!config.pages) config.pages = [];
+      if (config.pages.some((p) => p.name === pageName)) {
+        return { success: false, result: `Page '${pageName}' already exists`, config };
+      }
+      const page: Page = { name: pageName, groups: (args.groups as string[]) || [] };
+      config.pages.push(page);
+      return { success: true, result: `Page '${pageName}' created`, config };
+    }
+
+    case "remove_page": {
+      const pageName = (args.name as string)?.trim();
+      if (!pageName) return { success: false, result: "Page name is required", config };
+      if (!config.pages) return { success: false, result: "No pages configured", config };
+      const idx = config.pages.findIndex((p) => p.name === pageName);
+      if (idx < 0) return { success: false, result: `Page '${pageName}' not found`, config };
+      config.pages.splice(idx, 1);
+      if (config.pages.length === 0) config.pages = undefined;
+      return { success: true, result: `Page '${pageName}' removed`, config };
+    }
+
+    case "update_page": {
+      const pageName = (args.name as string)?.trim();
+      if (!pageName) return { success: false, result: "Page name is required", config };
+      if (!config.pages) return { success: false, result: "No pages configured", config };
+      const page = config.pages.find((p) => p.name === pageName);
+      if (!page) return { success: false, result: `Page '${pageName}' not found`, config };
+      if (args.newName) page.name = args.newName as string;
+      if (args.groups) page.groups = args.groups as string[];
+      return { success: true, result: `Page '${pageName}' updated`, config };
     }
 
     default:

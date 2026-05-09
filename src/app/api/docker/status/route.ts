@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readConfig } from "@/lib/config";
 
 interface ContainerStatus {
+  id: string;
   name: string;
   state: string;
   status: string;
@@ -23,7 +24,8 @@ export async function GET(request: NextRequest) {
         { timeout: 5000, encoding: "utf-8" }
       );
       const parsed = JSON.parse(result);
-      containers = parsed.map((c: { Names?: string[]; State?: string; Status?: string }) => ({
+      containers = parsed.map((c: { Id?: string; Names?: string[]; State?: string; Status?: string }) => ({
+        id: c.Id ? c.Id.slice(0, 12) : "",
         name: (c.Names?.[0] || "").replace(/^\//, ""),
         state: c.State || "unknown",
         status: c.Status || "",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import type { Bookmark, Group } from "@/types/config";
+import type { Bookmark, Group, Page, IntegrationFieldType } from "@/types/config";
 import WidgetRow from "@/components/layout/WidgetRow";
 import BookmarkGrid from "@/components/bookmarks/BookmarkGrid";
 import BookmarkEditModal from "@/components/bookmarks/BookmarkEditModal";
@@ -37,6 +37,7 @@ export default function Dashboard() {
   const { config, authenticated, setAuthenticated, canEdit, fetchConfig, applyTheme } = useConfig();
 
   const [editMode, setEditMode] = useState(false);
+  const [activePage, setActivePage] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -47,7 +48,7 @@ export default function Dashboard() {
   const [bookmarkModalGroup, setBookmarkModalGroup] = useState<string | null>(null);
   const [bookmarkModalInitial, setBookmarkModalInitial] = useState<{
     name?: string; url?: string; icon?: string; description?: string; tags?: string[]; statusCheck?: boolean;
-    integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string }>; display: string; pollInterval: number };
+    integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string; type?: IntegrationFieldType }>; display: string; pollInterval: number };
   } | undefined>(undefined);
   const [bookmarkModalMode, setBookmarkModalMode] = useState<"add" | "edit">("add");
 
@@ -140,7 +141,7 @@ export default function Dashboard() {
   }, []);
 
   const handleBookmarkModalSave = useCallback(
-    async (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean; integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string }>; display: string; pollInterval: number } }) => {
+    async (data: { name: string; url: string; icon: string; description: string; tags: string[]; statusCheck?: boolean; integration?: { endpoint: string; headers: Record<string, string>; fields: Array<{ path: string; label: string; type?: IntegrationFieldType }>; display: string; pollInterval: number } }) => {
       if (!bookmarkModalGroup) return;
       setBookmarkModalOpen(false);
       if (bookmarkModalMode === "edit" && bookmarkModalInitial?.name) {
@@ -316,11 +317,31 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-screen-xl mx-auto px-6 py-6 flex flex-col gap-6">
+        {/* Page tabs */}
+        {config.pages && config.pages.length > 0 && (
+          <div className="flex gap-1 overflow-x-auto scrollbar-none">
+            {config.pages.map((page, i) => (
+              <button
+                key={page.name}
+                onClick={() => setActivePage(i)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-t-[var(--radius-sm)] cursor-pointer transition-all duration-150 border-none ${
+                  activePage === i
+                    ? "bg-[var(--surface)] text-[var(--text)] border-b-2 border-b-[var(--accent)]"
+                    : "bg-transparent text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                {page.name}
+              </button>
+            ))}
+          </div>
+        )}
         {config.widgets.length > 0 && (
           <WidgetRow widgets={config.widgets} title={config.settings.title} editMode={editMode && canEdit} onRemoveWidget={(i) => mutate("remove_widget", { index: i })} onAddWidget={() => setWidgetPickerOpen(true)} onConfigUpdate={fetchConfig} />
         )}
         <BookmarkGrid
-          groups={config.groups}
+          groups={config.pages && config.pages.length > 0
+            ? config.groups.filter((g) => config.pages![activePage]?.groups?.includes(g.name))
+            : config.groups}
           columns={config.settings.layout.columns}
           editMode={editMode && canEdit}
           onDeleteBookmark={handleDeleteBookmark}

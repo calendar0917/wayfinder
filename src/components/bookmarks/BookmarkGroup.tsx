@@ -18,6 +18,7 @@ interface BookmarkGroupProps {
   statuses?: Map<string, StatusResult>;
   dockerStatuses?: Record<string, DockerStatusResult>;
   integrationResults?: Map<string, IntegrationResult>;
+  activeTag?: string | null;
 }
 
 export default function BookmarkGroup({
@@ -30,12 +31,23 @@ export default function BookmarkGroup({
   statuses,
   dockerStatuses,
   integrationResults,
+  activeTag,
 }: BookmarkGroupProps) {
   const [collapsed, setCollapsed] = useState(group.collapsed);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed((prev) => !prev);
   }, []);
+
+  const filteredBookmarks = activeTag
+    ? group.bookmarks.filter((b) => b.tags.includes(activeTag))
+    : group.bookmarks;
+
+  const filteredCount = filteredBookmarks.length;
+  const totalCount = group.bookmarks.length;
+
+  // Hide group entirely if tag filter results in empty
+  if (activeTag && filteredCount === 0) return null;
 
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 stagger-item">
@@ -60,7 +72,7 @@ export default function BookmarkGroup({
           {group.name}
         </button>
         <span className="text-xs text-[var(--text-tertiary)]">
-          {group.bookmarks.length}
+          {activeTag ? `${filteredCount}/${totalCount}` : totalCount}
         </span>
         {editMode && (
           <div className="ml-auto flex items-center gap-1">
@@ -95,42 +107,45 @@ export default function BookmarkGroup({
               {...provided.droppableProps}
               className={`grid gap-2 transition-colors duration-150 ${snapshot.isDraggingOver && editMode ? "bg-[var(--accent-soft)] rounded-[var(--radius-sm)] p-1 -m-1" : ""}`}
             >
-              {group.bookmarks.map((bookmark, index) => (
-                <Draggable
-                  key={`${group.name}-bm-${index}`}
-                  draggableId={`${group.name}-bm-${index}`}
-                  index={index}
-                  isDragDisabled={!editMode}
-                >
-                  {(dragProvided, dragSnapshot) => (
-                    <div
-                      ref={dragProvided.innerRef}
-                      {...dragProvided.draggableProps}
-                      {...dragProvided.dragHandleProps}
-                      style={dragProvided.draggableProps.style}
-                      className={dragSnapshot.isDragging ? "ring-2 ring-[var(--accent)] rounded-[var(--radius-sm)]" : ""}
-                    >
-                      <BookmarkCard
-                        bookmark={bookmark}
-                        editMode={editMode}
-                        onDelete={
-                          onDeleteBookmark
-                            ? (name) => onDeleteBookmark(group.name, name)
-                            : undefined
-                        }
-                        onEdit={
-                          onEditBookmark
-                            ? () => onEditBookmark(group.name, bookmark)
-                            : undefined
-                        }
-                        statusResult={statuses?.get(bookmark.url)}
-                        dockerStatus={bookmark.container ? dockerStatuses?.[bookmark.container] : undefined}
-                        integrationResult={bookmark.integration ? integrationResults?.get(bookmark.name) : undefined}
-                      />
-                    </div>
-                  )}
-                </Draggable>
-              ))}
+              {filteredBookmarks.map((bookmark, index) => {
+                const originalIndex = group.bookmarks.indexOf(bookmark);
+                return (
+                  <Draggable
+                    key={`${group.name}-bm-${originalIndex}`}
+                    draggableId={`${group.name}-bm-${originalIndex}`}
+                    index={originalIndex}
+                    isDragDisabled={!editMode}
+                  >
+                    {(dragProvided, dragSnapshot) => (
+                      <div
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        {...dragProvided.dragHandleProps}
+                        style={dragProvided.draggableProps.style}
+                        className={dragSnapshot.isDragging ? "ring-2 ring-[var(--accent)] rounded-[var(--radius-sm)]" : ""}
+                      >
+                        <BookmarkCard
+                          bookmark={bookmark}
+                          editMode={editMode}
+                          onDelete={
+                            onDeleteBookmark
+                              ? (name) => onDeleteBookmark(group.name, name)
+                              : undefined
+                          }
+                          onEdit={
+                            onEditBookmark
+                              ? () => onEditBookmark(group.name, bookmark)
+                              : undefined
+                          }
+                          statusResult={statuses?.get(bookmark.url)}
+                          dockerStatus={bookmark.container ? dockerStatuses?.[bookmark.container] : undefined}
+                          integrationResult={bookmark.integration ? integrationResults?.get(bookmark.name) : undefined}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                );
+              })}
               {provided.placeholder}
             </div>
           )}
@@ -150,6 +165,7 @@ export default function BookmarkGroup({
               statuses={statuses}
               dockerStatuses={dockerStatuses}
               integrationResults={integrationResults}
+              activeTag={activeTag}
             />
           ))}
         </div>
