@@ -2,6 +2,10 @@
 
 一个带 AI 助手的自托管导航仪表盘。用自然语言管理你的书签、小组件和集成服务。
 
+- 示例网站：https://calendar0917.github.io/wayfinder/
+- Docker 镜像：`ghcr.io/calendar0917/wayfinder:1.0.0`
+- GitHub：https://github.com/calendar0917/wayfinder
+
 [English](README.en.md)
 
 ## 功能特性
@@ -22,7 +26,7 @@
 
 ```bash
 # 克隆
-git clone https://github.com/YOUR_USERNAME/wayfinder.git
+git clone https://github.com/calendar0917/wayfinder.git
 cd wayfinder
 
 # 配置
@@ -37,6 +41,18 @@ docker compose up -d
 ```
 
 打开 `http://localhost:3000`，通过设置对话框或 AI 对话设置密码。
+
+### 使用 GHCR 镜像部署
+
+```bash
+docker run -d \
+  --name wayfinder \
+  -p 3000:3000 \
+  -v $(pwd)/data:/app/data \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -e AUTH_SECRET=your-secret \
+  ghcr.io/calendar0917/wayfinder:1.0.0
+```
 
 ### AI 配置（可选）
 

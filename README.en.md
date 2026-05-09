@@ -2,6 +2,10 @@
 
 A self-hosted dashboard with AI assistant. Manage your bookmarks, widgets, and integrations through natural language.
 
+- Demo: https://calendar0917.github.io/wayfinder/
+- Docker image: `ghcr.io/calendar0917/wayfinder:1.0.0`
+- GitHub: https://github.com/calendar0917/wayfinder
+
 [中文](README.md)
 
 ## Features
@@ -22,7 +26,7 @@ A self-hosted dashboard with AI assistant. Manage your bookmarks, widgets, and i
 
 ```bash
 # Clone
-git clone https://github.com/YOUR_USERNAME/wayfinder.git
+git clone https://github.com/calendar0917/wayfinder.git
 cd wayfinder
 
 # Configure
@@ -37,6 +41,18 @@ docker compose up -d
 ```
 
 Open `http://localhost:3000`. Set a password through the settings dialog or AI chat.
+
+### Deploy from GHCR
+
+```bash
+docker run -d \
+  --name wayfinder \
+  -p 3000:3000 \
+  -v $(pwd)/data:/app/data \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -e AUTH_SECRET=your-secret \
+  ghcr.io/calendar0917/wayfinder:1.0.0
+```
 
 ### AI Setup (Optional)
 
