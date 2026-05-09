@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link
           href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -35,6 +35,8 @@ export default function RootLayout({
                   } else {
                     document.documentElement.setAttribute('data-theme', theme);
                   }
+                  var locale = (cfg && cfg.settings && cfg.settings.locale) || 'en';
+                  document.documentElement.setAttribute('lang', locale);
                 } catch(e) {
                   document.documentElement.setAttribute('data-theme', 'light');
                 }

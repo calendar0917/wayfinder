@@ -18,7 +18,7 @@ import { useStatusCheck } from "@/hooks/useStatusCheck";
 import { useDockerStatus } from "@/hooks/useDockerStatus";
 import { useIntegration } from "@/hooks/useIntegration";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
-import type { Group, SafeConfig } from "@/types/config";
+import type { Group, SafeConfig, WidgetConfig } from "@/types/config";
 
 type Theme = "auto" | "light" | "dark";
 
@@ -67,7 +67,10 @@ function predictConfig(
             if (args.url) b.url = args.url as string;
             if (args.icon !== undefined) b.icon = args.icon as string;
             if (args.description !== undefined) b.description = args.description as string;
+            if (args.shortcut !== undefined) b.shortcut = args.shortcut as string;
             if (args.tags !== undefined) b.tags = args.tags as string[];
+            if (args.server !== undefined) b.server = args.server as string;
+            if (args.container !== undefined) b.container = args.container as string;
             if (args.statusCheck !== undefined) b.statusCheck = args.statusCheck as boolean;
             return next;
           }
@@ -115,6 +118,52 @@ function predictConfig(
         if (args.engine) next.settings.search.engine = args.engine as string;
         if (args.customUrl !== undefined) next.settings.search.customUrl = args.customUrl as string;
         return next;
+      }
+      case "update_locale": {
+        next.settings.locale = args.locale as string;
+        return next;
+      }
+      case "add_widget": {
+        next.widgets.push({ type: args.type as WidgetConfig["type"], config: (args.config as Record<string, unknown>) || {} });
+        return next;
+      }
+      case "remove_widget": {
+        if (typeof args.index === "number") {
+          if (args.index >= 0 && args.index < next.widgets.length) {
+            next.widgets.splice(args.index, 1);
+            return next;
+          }
+        } else if (args.type) {
+          const idx = next.widgets.findIndex((w) => w.type === args.type);
+          if (idx >= 0) { next.widgets.splice(idx, 1); return next; }
+        }
+        return null;
+      }
+      case "configure_integration": {
+        for (const g of next.groups) {
+          const b = g.bookmarks?.find((b) => b.name === args.name);
+          if (b) {
+            b.integration = {
+              endpoint: args.endpoint as string,
+              headers: (args.headers as Record<string, string>) || {},
+              fields: (args.fields as Array<{ path: string; label?: string }>).map((f) => ({ path: f.path, label: f.label || "" })),
+              display: (args.display as "inline" | "badge" | "card") || "inline",
+              pollInterval: typeof args.pollInterval === "number" ? Math.max(5, Math.min(3600, args.pollInterval)) : 60,
+            };
+            return next;
+          }
+        }
+        return null;
+      }
+      case "remove_integration": {
+        for (const g of next.groups) {
+          const b = g.bookmarks?.find((b) => b.name === args.name);
+          if (b) {
+            b.integration = undefined;
+            return next;
+          }
+        }
+        return null;
       }
       default:
         return null;

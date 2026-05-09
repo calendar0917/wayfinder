@@ -7,7 +7,6 @@ import type { AppConfig, SafeConfig, Group } from "@/types/config";
 const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), "data");
 const CONFIG_FILE = path.join(DATA_DIR, "settings.yaml");
 
-// Default password "admin" — users should change this after first login
 const DEFAULT_PASSWORD_HASH = "$2a$12$VwhkwP7xdXX0rhIY5l58.OoRGNVQPUlHAM6uBBCaIH0MX9zwbkq.G";
 
 export function resolveEnvVar(value: unknown): unknown {
@@ -158,4 +157,8 @@ function migrateConfig(config: AppConfig): void {
     addStatusCheck(config.groups);
   }
   // v2 -> v3: integration field is optional, no data mutation needed
+  // v3 -> v4: add locale setting to existing configs
+  if (config.version < 4) {
+    if (!config.settings.locale) config.settings.locale = "en";
+  }
 }

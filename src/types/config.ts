@@ -1,6 +1,7 @@
 export interface Settings {
   title: string;
   theme: "auto" | "light" | "dark";
+  locale: string;
   layout: {
     columns: number;
   };

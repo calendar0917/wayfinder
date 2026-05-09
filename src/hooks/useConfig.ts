@@ -18,8 +18,9 @@ export function useConfig() {
   const [authenticated, setAuthenticated] = useState(false);
   const initialLoadDone = useRef(false);
 
-  const applyTheme = useCallback((t: Theme) => {
+  const applyTheme = useCallback((t: Theme, locale?: string) => {
     document.documentElement.setAttribute("data-theme", resolveTheme(t));
+    if (locale) document.documentElement.setAttribute("lang", locale);
   }, []);
 
   const fetchConfig = useCallback(async () => {
@@ -33,7 +34,7 @@ export function useConfig() {
       setConfig(cfg);
       setAuthRequired(auth.authRequired);
       setAuthenticated(auth.authenticated);
-      applyTheme(cfg?.settings?.theme || "auto");
+      applyTheme(cfg?.settings?.theme || "auto", cfg?.settings?.locale || "en");
       try { localStorage.setItem("homepage-config", JSON.stringify(cfg)); } catch {}
     } catch {
       // will retry

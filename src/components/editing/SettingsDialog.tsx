@@ -28,6 +28,7 @@ export default function SettingsDialog({
   const [searchEngine, setSearchEngine] = useState(settings.search.engine);
   const [customUrl, setCustomUrl] = useState(settings.search.customUrl);
   const [theme, setTheme] = useState(settings.theme);
+  const [locale, setLocale] = useState(settings.locale || "en");
   const [apiKey, setApiKey] = useState("");
   const [apiBase, setApiBase] = useState(settings.apiKey === "***" ? "" : settings.apiBase);
   const [aiModel, setAiModel] = useState(settings.apiKey === "***" ? "" : settings.aiModel);
@@ -40,6 +41,7 @@ export default function SettingsDialog({
     setSearchEngine(settings.search.engine);
     setCustomUrl(settings.search.customUrl);
     setTheme(settings.theme);
+    setLocale(settings.locale || "en");
     setApiKey("");
     setApiBase(settings.apiKey === "***" ? settings.apiBase : "");
     setAiModel(settings.apiKey === "***" ? settings.aiModel : "");
@@ -62,6 +64,9 @@ export default function SettingsDialog({
     }
     if (theme !== settings.theme) {
       mutations.push({ operation: "change_theme", arguments: { theme } });
+    }
+    if (locale !== (settings.locale || "en")) {
+      mutations.push({ operation: "update_locale", arguments: { locale } });
     }
     if (apiKey || apiBase || aiModel) {
       const aiArgs: Record<string, unknown> = {};
@@ -172,6 +177,25 @@ export default function SettingsDialog({
                   </button>
                 ))}
               </div>
+            </div>
+            {/* Locale */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--text-secondary)]">Language</label>
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value)}
+                className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
+              >
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+                <option value="de">Deutsch</option>
+                <option value="fr">Français</option>
+                <option value="es">Español</option>
+                <option value="pt">Português</option>
+                <option value="ru">Русский</option>
+              </select>
             </div>
 
             {/* Divider */}

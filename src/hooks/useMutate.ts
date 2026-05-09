@@ -13,7 +13,7 @@ function handleUnauthorized() {
 export function useMutate(deps: {
   setConfig: (c: SafeConfig) => void;
   setAuthenticated: (a: boolean) => void;
-  applyTheme: (t: Theme) => void;
+  applyTheme: (t: Theme, locale?: string) => void;
   fetchConfig: () => Promise<void>;
 }) {
   const { toast } = useToast();
@@ -35,7 +35,7 @@ export function useMutate(deps: {
       const data = await res.json();
       if (data.config) {
         deps.setConfig(data.config);
-        deps.applyTheme(data.config.settings?.theme || "auto");
+        deps.applyTheme(data.config.settings?.theme || "auto", data.config.settings?.locale);
       } else {
         deps.fetchConfig();
       }
@@ -58,7 +58,7 @@ export function useMutate(deps: {
       snapshotRef.current = predictedConfig;
 
       deps.setConfig(predictedConfig);
-      deps.applyTheme(predictedConfig.settings?.theme || "auto");
+      deps.applyTheme(predictedConfig.settings?.theme || "auto", predictedConfig.settings?.locale);
 
       try {
         const res = await fetch("/api/config/mutate", {
@@ -77,7 +77,7 @@ export function useMutate(deps: {
         if (data.success) {
           if (data.config) {
             deps.setConfig(data.config);
-            deps.applyTheme(data.config.settings?.theme || "auto");
+            deps.applyTheme(data.config.settings?.theme || "auto", data.config.settings?.locale);
           }
           toast(data.result || "Done", "success");
         } else {

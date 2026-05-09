@@ -347,6 +347,20 @@ export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
+      name: "update_locale",
+      description: "Update the dashboard locale/language (e.g. en, zh, ja, de)",
+      parameters: {
+        type: "object",
+        properties: {
+          locale: { type: "string", description: "BCP 47 language tag (e.g. en, zh, ja, de, fr)" },
+        },
+        required: ["locale"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "configure_integration",
       description: "Configure a live data integration on a bookmark. Fetches JSON from an endpoint and displays extracted fields inline, as a badge, or as a card. Header values can reference environment variables with ${VAR_NAME} syntax.",
       parameters: {
@@ -807,6 +821,13 @@ export function executeTool(
         config.settings.search.customUrl = args.customUrl as string;
       }
       return { success: true, result: `Search updated: engine=${config.settings.search.engine}`, config };
+    }
+
+    case "update_locale": {
+      const locale = (args.locale as string || "").trim();
+      if (!locale) return { success: false, result: "Locale is required", config };
+      config.settings.locale = locale;
+      return { success: true, result: `Locale updated to '${locale}'`, config };
     }
 
     case "configure_integration": {

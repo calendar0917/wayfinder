@@ -43,6 +43,7 @@ const groupSchema: z.ZodType<any> = z.lazy(() =>
 const settingsSchema = z.object({
   title: z.string().default("My Dashboard"),
   theme: z.enum(["auto", "light", "dark"]).default("auto"),
+  locale: z.string().default("en"),
   layout: z
     .object({
       columns: z.number().min(1).max(8).default(4),
@@ -74,13 +75,14 @@ export const configSchema = z.object({
   groups: z.array(groupSchema).default([]),
 });
 
-export const CURRENT_CONFIG_VERSION = 3;
+export const CURRENT_CONFIG_VERSION = 4;
 
 export const DEFAULT_CONFIG = {
-  version: 3,
+  version: 4,
   settings: {
     title: "My Dashboard",
     theme: "auto" as const,
+    locale: "en",
     layout: { columns: 4 },
     search: { engine: "duckduckgo", customUrl: "" },
     apiKey: "",
