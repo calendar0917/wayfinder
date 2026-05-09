@@ -18,6 +18,28 @@ const { title = 'Homepage — 自托管 AI 仪表盘' } = Astro.props;
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
+    <nav class="nav">
+      <a class="nav-brand" href="/">Homepage</a>
+      <div class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#gallery">预览</a>
+        <a href="#quickstart">开始</a>
+        <a href="https://github.com/calendar0917/homepage">GitHub</a>
+      </div>
+    </nav>
+
     <slot />
+
+    <script is:inline>
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.classList.add('revealed');
+            observer.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.1 });
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    </script>
   </body>
 </html>

@@ -1,30 +1,78 @@
 ---
 import Landing from '../layouts/Landing.astro';
-import { Content as HeroContent } from '../content/hero.md';
-import { Content as FeaturesContent } from '../content/features.md';
-import { Content as GalleryContent } from '../content/gallery.md';
 import { Content as QuickstartContent } from '../content/quickstart.md';
+
+const features = [
+  { title: 'AI 助手', desc: '用对话操控仪表盘——添加书签、调整布局、更换主题、配置集成，全部通过自然语言完成。27 种工具，覆盖所有操作。', hero: true },
+  { title: '书签管理', desc: '拖拽排序、嵌套子分组、标签过滤、自动获取图标、HTTP 状态检测。' },
+  { title: '实时数据集成', desc: '轮询任意 JSON API，以类型化格式展示（字节、百分比、温度等），内置常用服务模板。' },
+  { title: 'Docker 集成', desc: '直接在仪表盘上监控容器运行状态。' },
+  { title: '多页面', desc: '将分组组织到不同标签页中——工作、个人、家庭服务器。' },
+  { title: '主题系统', desc: '明暗自动切换，CSS 变量系统，支持自定义 CSS 注入。' },
+];
+
+const galleryItems = [
+  { src: '/homepage/images/dashboard.png', alt: '仪表盘总览', caption: '仪表盘总览' },
+  { src: '/homepage/images/ai-chat.png', alt: 'AI 助手对话', caption: 'AI 助手对话' },
+  { src: '/homepage/images/integrations.png', alt: '实时数据集成', caption: '实时数据集成' },
+  { src: '/homepage/images/command-palette.png', alt: '命令面板', caption: '命令面板 (Cmd+K)' },
+];
 ---
 
 <Landing>
   <header class="hero">
-    <div class="hero-text"><HeroContent /></div>
-    <nav class="hero-actions">
+    <h1 class="fade-in">Homepage</h1>
+    <p class="tagline fade-in fade-in-d1">一个带 AI 助手的自托管导航仪表盘<br/>用自然语言管理你的书签、小组件和集成服务</p>
+    <nav class="actions fade-in fade-in-d2">
       <a class="btn" href="https://github.com/calendar0917/homepage">GitHub</a>
       <a class="btn btn-outline" href="#quickstart">快速开始</a>
     </nav>
   </header>
 
-  <section class="section" id="features">
-    <FeaturesContent />
+  <section class="section reveal" id="features">
+    <div class="container">
+      <h2>功能特性</h2>
+      <p class="subtitle">轻量、可扩展、AI 原生</p>
+      <div class="features-grid">
+        {features.map(f => (
+          <div class:list={["card", {"card-hero": f.hero}]}>
+            <h3>{f.title}</h3>
+            <p>{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
   </section>
 
-  <section class="section" id="gallery">
-    <GalleryContent />
+  <section class="showcase-section reveal" id="gallery">
+    <div class="container">
+      <h2>预览</h2>
+      <p class="subtitle">看看它长什么样</p>
+
+      <!-- Hero screenshot — full width -->
+      <figure class="showcase-hero">
+        <img src={galleryItems[0].src} alt={galleryItems[0].alt} />
+        <figcaption>{galleryItems[0].caption}</figcaption>
+      </figure>
+
+      <!-- Bottom 3 — 3 column grid -->
+      <div class="showcase-grid">
+        {galleryItems.slice(1).map(item => (
+          <figure>
+            <img src={item.src} alt={item.alt} />
+            <figcaption>{item.caption}</figcaption>
+          </figure>
+        ))}
+      </div>
+
+      <p class="showcase-note">将截图或 GIF 放入 <code>site/public/images/</code> 目录，然后修改此文件中的文件名即可替换预览图。</p>
+    </div>
   </section>
 
-  <section class="section" id="quickstart">
-    <QuickstartContent />
+  <section class="quickstart-section reveal" id="quickstart">
+    <div class="container">
+      <QuickstartContent />
+    </div>
   </section>
 
   <footer class="footer">
