@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readConfig, writeConfig, withWriteLock } from "@/lib/config";
+import { configSchema } from "@/lib/config-schema";
 import { createClient, SYSTEM_PROMPT } from "@/lib/ai-provider";
 import { toolDefinitions, executeTool } from "@/lib/ai-tools";
 import { gitCommit } from "@/lib/git";
@@ -27,7 +28,18 @@ export async function POST(request: NextRequest) {
     const { messages, systemPrompt } = await request.json();
 
     const allMessages: ChatCompletionMessageParam[] = [
-      { role: "system", content: systemPrompt || SYSTEM_PROMPT },
+      {
+        role: "system",
+        content: `${systemPrompt || SYSTEM_PROMPT}\n\nCurrent config: ${JSON.stringify({
+          title: config.settings.title,
+          theme: config.settings.theme,
+          locale: config.settings.locale,
+          layout: config.settings.layout,
+          customCss: config.settings.customCss ? `(${config.settings.customCss.length} chars)` : undefined,
+          widgets: config.widgets.map((w, i) => ({ index: i, type: w.type, config: w.config })),
+          groups: config.groups.map(g => ({ name: g.name, bookmarkCount: g.bookmarks?.length || 0 })),
+        })}`,
+      },
       ...(messages || []),
     ];
 
@@ -153,15 +165,30 @@ export async function POST(request: NextRequest) {
             }
 
             if (configModified) {
-              await withWriteLock(() => {
-                writeConfig(currentConfig);
-              });
-              gitCommit("ai: multi-tool");
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ type: "config_updated" })}\n\n`
-                )
-              );
+              const validation = configSchema.safeParse(currentConfig);
+              if (!validation.success) {
+                const issues = validation.error.issues.map(
+                  (i) => `${i.path.join(".")}: ${i.message}`
+                );
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "error",
+                      content: `Config validation failed: ${issues.join("; ")}`,
+                    })}\n\n`
+                  )
+                );
+              } else {
+                await withWriteLock(() => {
+                  writeConfig(currentConfig);
+                });
+                gitCommit("ai: multi-tool");
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: "config_updated" })}\n\n`
+                  )
+                );
+              }
             }
           }
 

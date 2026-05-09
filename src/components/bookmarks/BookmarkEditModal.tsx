@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getFaviconUrl } from "@/lib/favicon";
+import { searchIcons, getSimpleIconUrl } from "@/lib/simple-icons";
 
 interface IntegrationFormData {
   endpoint: string;
@@ -54,10 +55,14 @@ export default function BookmarkEditModal({
   });
   const nameRef = useRef<HTMLInputElement>(null);
   const iconTouchedRef = useRef(false);
+  const [iconSearch, setIconSearch] = useState("");
+  const [showIconPicker, setShowIconPicker] = useState(false);
 
   useEffect(() => {
     if (open) {
       iconTouchedRef.current = false;
+      setShowIconPicker(false);
+      setIconSearch("");
       setName(initial?.name || "");
       setUrl(initial?.url || "");
       setIcon(initial?.icon || "");
@@ -178,15 +183,65 @@ export default function BookmarkEditModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Icon URL</label>
-              <input
-                value={icon}
-                onChange={(e) => {
-                  iconTouchedRef.current = true;
-                  setIcon(e.target.value);
-                }}
-                placeholder="https://github.com/favicon.ico"
-                className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
-              />
+              <div className="flex gap-1.5">
+                <input
+                  value={icon}
+                  onChange={(e) => {
+                    iconTouchedRef.current = true;
+                    setIcon(e.target.value);
+                  }}
+                  placeholder="https://github.com/favicon.ico"
+                  className="flex-1 px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
+                />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowIconPicker(!showIconPicker)}
+                    className="px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] cursor-pointer transition-all duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text)] hover:border-[var(--border-hover)] whitespace-nowrap"
+                  >
+                    Pick
+                  </button>
+                  {showIconPicker && (
+                    <div className="absolute right-0 top-full mt-1 w-64 max-h-60 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] z-50 flex flex-col overflow-hidden">
+                      <input
+                        value={iconSearch}
+                        onChange={(e) => setIconSearch(e.target.value)}
+                        placeholder="Search icons..."
+                        className="w-full px-3 py-2 bg-[var(--surface-alt)] border-b border-[var(--border)] text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-tertiary)]"
+                        autoFocus
+                      />
+                      <div className="overflow-y-auto flex-1 p-2">
+                        {searchIcons(iconSearch).map((ic) => (
+                          <button
+                            key={ic.slug}
+                            type="button"
+                            onClick={() => {
+                              iconTouchedRef.current = true;
+                              setIcon(getSimpleIconUrl(ic.slug));
+                              setShowIconPicker(false);
+                              setIconSearch("");
+                            }}
+                            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-[var(--radius-sm)] text-sm text-[var(--text)] cursor-pointer transition-colors duration-100 hover:bg-[var(--surface-hover)] bg-transparent border-none"
+                          >
+                            <img
+                              src={getSimpleIconUrl(ic.slug)}
+                              alt=""
+                              width={16}
+                              height={16}
+                              className="shrink-0"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                            />
+                            <span>{ic.name}</span>
+                          </button>
+                        ))}
+                        {searchIcons(iconSearch).length === 0 && (
+                          <span className="text-xs text-[var(--text-tertiary)] px-2 py-1">No icons found</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Description</label>

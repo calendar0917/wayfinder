@@ -1,7 +1,7 @@
 {"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
 {"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
 {"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
-{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "new widget and modal components"}
-{"file": ".trellis/spec/frontend/type-safety.md", "reason": "new config types"}
-{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "integration and status hooks"}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "API+UI integration features"}
+{"file": "src/types/config.ts", "reason": "WidgetConfig/Settings types for new fields"}
+{"file": "src/lib/config-schema.ts", "reason": "Zod schemas for new config fields"}
+{"file": "src/lib/ai-tools.ts", "reason": "AI tool definitions and executeTool"}
+{"file": "src/lib/weather.ts", "reason": "Existing weather backend"}

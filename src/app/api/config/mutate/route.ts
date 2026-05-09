@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readConfig, writeConfig, readConfigSafe, withWriteLock } from "@/lib/config";
+import { configSchema } from "@/lib/config-schema";
 import { executeTool } from "@/lib/ai-tools";
 import { hashPassword, setAuthCookie } from "@/lib/auth";
 import { gitCommit } from "@/lib/git";
@@ -29,6 +30,17 @@ export async function POST(request: NextRequest) {
       const result = executeTool(operation, args || {}, config);
 
       if (result.success) {
+        const validation = configSchema.safeParse(result.config);
+        if (!validation.success) {
+          const issues = validation.error.issues.map(
+            (i) => `${i.path.join(".")}: ${i.message}`
+          );
+          return NextResponse.json({
+            success: false,
+            result: `Config validation failed: ${issues.join("; ")}`,
+            config: readConfigSafe(),
+          });
+        }
         if (
           operation === "set_password" &&
           result.config.settings.passwordHash.startsWith("HASH:")

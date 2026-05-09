@@ -54,6 +54,9 @@ export default function Dashboard() {
   // Add group modal
   const [addGroupOpen, setAddGroupOpen] = useState(false);
 
+  // Widget type picker
+  const [widgetPickerOpen, setWidgetPickerOpen] = useState(false);
+
   const { mutate } = useMutate({ setAuthenticated, fetchConfig });
 
   // Flatten all bookmarks recursively for status checking (memoized)
@@ -247,6 +250,9 @@ export default function Dashboard() {
   return (
     <ErrorBoundary>
     <div className="min-h-screen bg-[var(--bg)]">
+      {config.settings.customCss && (
+        <style dangerouslySetInnerHTML={{ __html: config.settings.customCss }} />
+      )}
       <header className="sticky top-0 z-10 bg-[var(--bg)] border-b border-[var(--border)]">
         <div className="max-w-screen-xl mx-auto px-6 h-12 flex items-center gap-3">
           <h1 className="text-[1.25rem] font-bold tracking-tight text-[var(--text)] mr-auto">
@@ -311,7 +317,7 @@ export default function Dashboard() {
 
       <main className="max-w-screen-xl mx-auto px-6 py-6 flex flex-col gap-6">
         {config.widgets.length > 0 && (
-          <WidgetRow widgets={config.widgets} title={config.settings.title} editMode={editMode && canEdit} onRemoveWidget={(i) => mutate("remove_widget", { index: i })} onAddWidget={() => mutate("add_widget", { type: "notes" })} />
+          <WidgetRow widgets={config.widgets} title={config.settings.title} editMode={editMode && canEdit} onRemoveWidget={(i) => mutate("remove_widget", { index: i })} onAddWidget={() => setWidgetPickerOpen(true)} onConfigUpdate={fetchConfig} />
         )}
         <BookmarkGrid
           groups={config.groups}
@@ -344,6 +350,36 @@ export default function Dashboard() {
 
       {/* Add group modal */}
       <AddGroupModal open={addGroupOpen} onClose={() => setAddGroupOpen(false)} onSubmit={handleAddGroupSubmit} />
+
+      {/* Widget type picker */}
+      {widgetPickerOpen && (
+        <>
+          <div className="fixed inset-0 z-[200]" onClick={() => setWidgetPickerOpen(false)} />
+          <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[201] bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] p-3 flex flex-col gap-1 min-w-[180px]">
+            {([
+              ["datetime", "Date & Time", "🕐"],
+              ["greeting", "Greeting", "👋"],
+              ["weather", "Weather", "🌤"],
+              ["search", "Search Bar", "🔍"],
+              ["notes", "Notes", "📝"],
+              ["resources", "System Resources", "📊"],
+              ["logo", "Logo", "🖼"],
+            ] as const).map(([type, label, emoji]) => (
+              <button
+                key={type}
+                onClick={() => {
+                  mutate("add_widget", { type });
+                  setWidgetPickerOpen(false);
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-[var(--radius-sm)] text-sm text-[var(--text)] cursor-pointer transition-colors duration-100 hover:bg-[var(--surface-hover)] bg-transparent border-none w-full text-left"
+              >
+                <span>{emoji}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
     </ErrorBoundary>
   );

@@ -9,6 +9,7 @@ export interface Settings {
     engine: string;
     customUrl: string;
   };
+  customCss?: string;
   apiKey: string;
   apiBase: string;
   aiModel: string;

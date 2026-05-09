@@ -16,6 +16,7 @@ interface WidgetRowProps {
   editMode?: boolean;
   onRemoveWidget?: (index: number) => void;
   onAddWidget?: () => void;
+  onConfigUpdate?: () => void;
 }
 
 const widgetComponents: Record<string, React.ComponentType<any>> = {
@@ -28,7 +29,7 @@ const widgetComponents: Record<string, React.ComponentType<any>> = {
   search: SearchWidget,
 };
 
-export default function WidgetRow({ widgets, title, editMode, onRemoveWidget, onAddWidget }: WidgetRowProps) {
+export default function WidgetRow({ widgets, title, editMode, onRemoveWidget, onAddWidget, onConfigUpdate }: WidgetRowProps) {
   if (!widgets.length) return null;
 
   return (
@@ -37,12 +38,14 @@ export default function WidgetRow({ widgets, title, editMode, onRemoveWidget, on
         const Widget = widgetComponents[widget.type];
         if (!Widget) return null;
         return (
-          <ErrorBoundary key={i}>
+          <ErrorBoundary key={`${widget.type}-${i}`}>
             <div className="relative group">
               {widget.type === "greeting" ? (
                 <GreetingWidget title={title} />
               ) : widget.type === "datetime" ? (
                 <ClockWidget config={widget.config} />
+              ) : widget.type === "weather" ? (
+                <WeatherWidget config={widget.config as import("@/types/config").WeatherConfig} widgetIndex={i} onConfigUpdate={onConfigUpdate} />
               ) : (
                 <Widget config={widget.config} />
               )}

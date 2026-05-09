@@ -1,4 +1,8 @@
+import { getSlugForUrl, getSimpleIconUrl } from "./simple-icons";
+
 export function getFaviconUrl(url: string): string {
+  const slug = getSlugForUrl(url);
+  if (slug) return getSimpleIconUrl(slug);
   try {
     const parsed = new URL(url);
     return `${parsed.origin}/favicon.ico`;
@@ -18,7 +22,6 @@ export function getLetterAvatar(name: string): string {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const color = colors[Math.abs(hash) % colors.length];
-  // Return an SVG data URI for a letter avatar
   return `data:image/svg+xml,${encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="${color}"/><text x="16" y="22" font-family="system-ui,sans-serif" font-size="16" font-weight="600" text-anchor="middle" fill="white">${letter}</text></svg>`
   )}`;

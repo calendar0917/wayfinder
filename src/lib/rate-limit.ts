@@ -1,5 +1,5 @@
 const attempts = new Map<string, { count: number; resetAt: number }>();
-export const MAX_ATTEMPTS = 5;
+export const MAX_ATTEMPTS = 30;
 export const WINDOW_MS = 60_000;
 
 function evictExpired(): void {

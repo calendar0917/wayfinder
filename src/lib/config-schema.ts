@@ -55,6 +55,7 @@ const settingsSchema = z.object({
       customUrl: z.string().default(""),
     })
     .default({ engine: "duckduckgo", customUrl: "" }),
+  customCss: z.string().optional().default(""),
   apiKey: z.string().default(""),
   apiBase: z.string().default("https://api.openai.com/v1"),
   aiModel: z.string().default("gpt-4o"),
@@ -111,7 +112,7 @@ export const configSchema = z.object({
   groups: z.array(groupSchema).default([]),
 });
 
-export const CURRENT_CONFIG_VERSION = 4;
+export const CURRENT_CONFIG_VERSION = 5;
 
 export const DEFAULT_CONFIG = {
   version: 4,

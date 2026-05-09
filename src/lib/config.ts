@@ -170,4 +170,8 @@ function migrateConfig(config: AppConfig): void {
   if (config.version < 4) {
     if (!config.settings.locale) config.settings.locale = "en";
   }
+  // v4 -> v5: add customCss setting
+  if (config.version < 5) {
+    if (config.settings.customCss === undefined) config.settings.customCss = "";
+  }
 }

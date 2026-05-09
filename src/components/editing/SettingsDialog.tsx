@@ -32,6 +32,7 @@ export default function SettingsDialog({
   const [apiKey, setApiKey] = useState("");
   const [apiBase, setApiBase] = useState(settings.apiKey === "***" ? "" : settings.apiBase);
   const [aiModel, setAiModel] = useState(settings.apiKey === "***" ? "" : settings.aiModel);
+  const [customCss, setCustomCss] = useState(settings.customCss || "");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -45,6 +46,7 @@ export default function SettingsDialog({
     setApiKey("");
     setApiBase(settings.apiKey === "***" ? settings.apiBase : "");
     setAiModel(settings.apiKey === "***" ? settings.aiModel : "");
+    setCustomCss(settings.customCss || "");
     setNewPassword("");
   }, [settings, open]);
 
@@ -77,6 +79,9 @@ export default function SettingsDialog({
     }
     if (newPassword && newPassword.length >= 4) {
       mutations.push({ operation: "set_password", arguments: { password: newPassword } });
+    }
+    if (customCss !== (settings.customCss || "")) {
+      mutations.push({ operation: "update_custom_css", arguments: { css: customCss } });
     }
 
     if (mutations.length > 0) {
@@ -248,6 +253,21 @@ export default function SettingsDialog({
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Min 4 characters"
                 className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-[var(--border)]" />
+
+            {/* Custom CSS */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Custom CSS</label>
+              <textarea
+                value={customCss}
+                onChange={(e) => setCustomCss(e.target.value)}
+                placeholder={":root { --accent: #10b981; }\n.bookmark-card { border-radius: 12px; }"}
+                rows={4}
+                className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-xs font-mono text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)] resize-y"
               />
             </div>
 

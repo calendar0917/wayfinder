@@ -1,3 +1,5 @@
 {"file": ".claude/commands/trellis/finish-work.md", "reason": "Finish work checklist"}
 {"file": ".claude/commands/trellis/check.md", "reason": "Code quality check spec"}
-{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "verify feature quality"}
+{"file": "src/types/config.ts", "reason": "Verify type consistency"}
+{"file": "src/lib/config-schema.ts", "reason": "Verify schema consistency"}
+{"file": "src/lib/ai-tools.ts", "reason": "Verify AI tool definitions"}

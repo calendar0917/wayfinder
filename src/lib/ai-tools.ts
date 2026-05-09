@@ -235,18 +235,14 @@ export const toolDefinitions = [
     type: "function" as const,
     function: {
       name: "add_widget",
-      description: "Add a widget to the page",
+      description: "Add a widget. For weather include location in widgetConfig like {\"location\":\"Tokyo\",\"units\":\"metric\"}. Valid widgetType values: datetime, greeting, weather, search, notes, resources, logo.",
       parameters: {
         type: "object",
         properties: {
-          type: {
-            type: "string",
-            enum: ["datetime", "greeting", "weather", "resources", "logo", "notes", "search"],
-            description: "Widget type",
-          },
-          config: { type: "object", description: "Widget configuration" },
+          widgetType: { type: "string", description: "One of: datetime, greeting, weather, search, notes, resources, logo" },
+          widgetConfig: { type: "object", description: "Widget settings. Weather: {location,units}. Datetime: {format,locale}." },
         },
-        required: ["type"],
+        required: ["widgetType"],
       },
     },
   },
@@ -254,19 +250,12 @@ export const toolDefinitions = [
     type: "function" as const,
     function: {
       name: "remove_widget",
-      description: "Remove a widget by type or index",
+      description: "Remove a widget by widgetType or index",
       parameters: {
         type: "object",
         properties: {
-          type: {
-            type: "string",
-            enum: ["datetime", "greeting", "weather", "resources", "logo", "notes", "search"],
-            description: "Widget type to remove",
-          },
-          index: {
-            type: "number",
-            description: "Widget index (0-based) for removing by position",
-          },
+          widgetType: { type: "string", description: "One of: datetime, greeting, weather, search, notes, resources, logo" },
+          index: { type: "number", description: "Widget index (0-based) for removing by position" },
         },
       },
     },
@@ -412,6 +401,36 @@ export const toolDefinitions = [
           group: { type: "string", description: "Group name (optional)" },
         },
         required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_widget_config",
+      description: "Update the config of an existing widget. You can find the widget index from the current config context above. For weather: {location:'city',units:'metric'|'imperial'}. For datetime: {format:{dateStyle,timeStyle},locale}.",
+      parameters: {
+        type: "object",
+        properties: {
+          index: { type: "number", description: "Widget index from current config" },
+          widgetType: { type: "string", description: "Widget type (used to find widget if index not provided)" },
+          widgetConfig: { type: "object", description: "New widget config object" },
+        },
+        required: ["widgetConfig"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_custom_css",
+      description: "Update the dashboard custom CSS. Use CSS custom properties (e.g. --accent, --bg, --text, --surface) and standard selectors. The CSS replaces the entire custom stylesheet.",
+      parameters: {
+        type: "object",
+        properties: {
+          css: { type: "string", description: "Complete CSS string to apply" },
+        },
+        required: ["css"],
       },
     },
   },
@@ -706,13 +725,36 @@ export function executeTool(
     }
 
     case "add_widget": {
+      const validTypes = ["datetime", "greeting", "weather", "resources", "logo", "notes", "search"] as const;
+      const rawType = args.widgetType || args.type;
+      if (!rawType) {
+        return { success: false, result: "Missing required parameter 'widgetType'", config };
+      }
+      const widgetType = String(rawType).toLowerCase();
+      if (!validTypes.includes(widgetType as typeof validTypes[number])) {
+        return { success: false, result: `Invalid widget type '${rawType}'. Must be one of: ${validTypes.join(", ")}`, config };
+      }
+      let widgetConfig: Record<string, unknown> = {};
+      if (args.widgetConfig && typeof args.widgetConfig === "object" && !Array.isArray(args.widgetConfig)) {
+        widgetConfig = args.widgetConfig as Record<string, unknown>;
+      } else if (typeof args.widgetConfig === "string") {
+        try { widgetConfig = JSON.parse(args.widgetConfig); } catch { /* use empty */ }
+      } else if (args.config && typeof args.config === "object" && !Array.isArray(args.config)) {
+        widgetConfig = args.config as Record<string, unknown>;
+      } else if (typeof args.config === "string") {
+        try { widgetConfig = JSON.parse(args.config); } catch { /* use empty */ }
+      }
       config.widgets.push({
-        type: args.type as "datetime" | "greeting" | "weather" | "resources" | "logo" | "notes" | "search",
-        config: (args.config as Record<string, unknown>) || {},
+        type: widgetType as typeof validTypes[number],
+        config: widgetConfig,
       });
+      let hint = "";
+      if (widgetType === "weather" && !widgetConfig.location) {
+        hint = " NOTE: Weather widget needs a location. Use update_widget_config with the widget index and {location:'city name'} to set it.";
+      }
       return {
         success: true,
-        result: `Widget '${args.type}' added`,
+        result: `Widget '${widgetType}' added at index ${config.widgets.length - 1}${hint}`,
         config,
       };
     }
@@ -734,18 +776,19 @@ export function executeTool(
           config,
         };
       }
-      const idx = config.widgets.findIndex((w) => w.type === args.type);
+      const removeType = args.widgetType || args.type;
+      const idx = config.widgets.findIndex((w) => w.type === removeType);
       if (idx < 0) {
         return {
           success: false,
-          result: `Widget '${args.type}' not found`,
+          result: `Widget '${removeType}' not found`,
           config,
         };
       }
       config.widgets.splice(idx, 1);
       return {
         success: true,
-        result: `Widget '${args.type}' removed`,
+        result: `Widget '${removeType}' removed`,
         config,
       };
     }
@@ -873,6 +916,44 @@ export function executeTool(
       }
       found.bookmark.integration = undefined;
       return { success: true, result: `Integration removed from '${args.name}'`, config };
+    }
+
+    case "update_widget_config": {
+      let idx = Number(args.index);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= config.widgets.length) {
+        // Try finding by type instead
+        const searchType = args.widgetType || args.type;
+        if (searchType) {
+          idx = config.widgets.findIndex(w => w.type === String(searchType).toLowerCase());
+        }
+        if (idx < 0) {
+          // Default to last widget (most recently added)
+          idx = config.widgets.length - 1;
+        }
+        if (idx < 0 || idx >= config.widgets.length) {
+          return { success: false, result: `Cannot find widget (index=${args.index}, type=${searchType}). ${config.widgets.length} widgets exist.`, config };
+        }
+      }
+      let newConfig: Record<string, unknown> = {};
+      const rawConfig = args.widgetConfig || args.config;
+      if (rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)) {
+        newConfig = rawConfig as Record<string, unknown>;
+      } else if (typeof rawConfig === "string") {
+        try { newConfig = JSON.parse(rawConfig); } catch { /* use empty */ }
+      }
+      config.widgets[idx] = { ...config.widgets[idx], config: newConfig };
+      return { success: true, result: `Widget ${config.widgets[idx].type} config updated`, config };
+    }
+
+    case "update_custom_css": {
+      const css = args.css as string;
+      if (typeof css !== "string") {
+        return { success: false, result: "css must be a string", config };
+      }
+      // Basic sanitization: strip <script> tags
+      const sanitized = css.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script>/gi, "");
+      config.settings.customCss = sanitized;
+      return { success: true, result: `Custom CSS updated (${sanitized.length} chars)`, config };
     }
 
     default:

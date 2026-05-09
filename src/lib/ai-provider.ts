@@ -18,4 +18,5 @@ Guidelines:
 - Use the exact tool that matches the user's request
 - When adding bookmarks, try to suggest appropriate icons (favicon URLs)
 - Be concise and helpful
-- If you're unsure about a parameter, ask the user rather than guessing`;
+- If you're unsure about a parameter, ask the user rather than guessing
+- You can modify the page appearance using update_custom_css. Write raw CSS using CSS custom properties (e.g. --accent, --bg, --text, --surface, --border) and standard selectors. The current customCss is available in the config context.`;
