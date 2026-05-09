@@ -110,57 +110,64 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
       const decoder = new TextDecoder();
       let buffer = "";
 
+      function processLine(line: string) {
+        if (!line.startsWith("data: ")) return;
+        try {
+          const event = JSON.parse(line.slice(6)) as ToolEvent;
+          if (event.type === "text" && event.content) {
+            hasContent = true;
+            assistantContent += event.content;
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+              return updated;
+            });
+          } else if (event.type === "tool_executing") {
+            setMessages((prev) => [...prev, { role: "tool", content: "...", toolName: event.name, toolSuccess: false }]);
+          } else if (event.type === "tool_result") {
+            setMessages((prev) => {
+              const updated = [...prev];
+              for (let i = updated.length - 1; i >= 0; i--) {
+                if (updated[i].role === "tool" && updated[i].content === "...") {
+                  updated[i] = {
+                    role: "tool",
+                    content: event.result || "",
+                    toolName: updated[i].toolName,
+                    toolSuccess: event.success ?? true,
+                  };
+                  break;
+                }
+              }
+              return updated;
+            });
+          } else if (event.type === "config_updated") {
+            onConfigUpdate?.();
+          } else if (event.type === "error") {
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "system", content: event.content || "Stream error" };
+              return updated;
+            });
+          }
+        } catch {
+          // skip malformed events
+        }
+      }
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
+        for (const line of lines) processLine(line);
+      }
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(line.slice(6)) as ToolEvent;
-            if (event.type === "text" && event.content) {
-              hasContent = true;
-              assistantContent += event.content;
-              setMessages((prev) => {
-                const updated = [...prev];
-                updated[updated.length - 1] = { role: "assistant", content: assistantContent };
-                return updated;
-              });
-            } else if (event.type === "tool_executing") {
-              setMessages((prev) => [...prev, { role: "tool", content: "...", toolName: event.name, toolSuccess: false }]);
-            } else if (event.type === "tool_result") {
-              setMessages((prev) => {
-                const updated = [...prev];
-                // Update the last tool_executing message with result
-                for (let i = updated.length - 1; i >= 0; i--) {
-                  if (updated[i].role === "tool" && updated[i].content === "...") {
-                    updated[i] = {
-                      role: "tool",
-                      content: event.result || "",
-                      toolName: updated[i].toolName,
-                      toolSuccess: event.success ?? true,
-                    };
-                    break;
-                  }
-                }
-                return updated;
-              });
-            } else if (event.type === "config_updated") {
-              onConfigUpdate?.();
-            } else if (event.type === "error") {
-              setMessages((prev) => {
-                const updated = [...prev];
-                updated[updated.length - 1] = { role: "system", content: event.content || "Stream error" };
-                return updated;
-              });
-            }
-          } catch {
-            // skip malformed events
-          }
-        }
+      // Flush any remaining buffered content (e.g. the last SSE event
+      // if it wasn't terminated by a trailing newline).
+      buffer += decoder.decode();
+      if (buffer) {
+        for (const line of buffer.split("\n")) processLine(line);
       }
 
       if (!hasContent) {
