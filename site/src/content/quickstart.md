@@ -9,7 +9,7 @@ git clone https://github.com/calendar0917/wayfinder.git
 cd wayfinder
 cp .env.example .env.local
 cp data/settings.example.yaml data/settings.yaml
-echo "AUTH_SECRET=$(openssl rand -hex 32)" >> .env.local
+sed -i "s|^AUTH_SECRET=.*|AUTH_SECRET=$(openssl rand -hex 32)|" .env.local
 docker compose up -d
 ```
 

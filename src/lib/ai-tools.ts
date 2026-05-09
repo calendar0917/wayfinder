@@ -913,13 +913,13 @@ export function executeTool(
     }
 
     case "update_ai_settings": {
-      if (args.apiKey && typeof args.apiKey === "string") {
+      if (typeof args.apiKey === "string") {
         config.settings.apiKey = args.apiKey;
       }
-      if (args.apiBase && typeof args.apiBase === "string") {
+      if (typeof args.apiBase === "string") {
         config.settings.apiBase = args.apiBase;
       }
-      if (args.aiModel && typeof args.aiModel === "string") {
+      if (typeof args.aiModel === "string") {
         config.settings.aiModel = args.aiModel;
       }
       return {

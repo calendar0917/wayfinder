@@ -33,8 +33,8 @@ cd wayfinder
 cp .env.example .env.local
 cp data/settings.example.yaml data/settings.yaml
 
-# Generate cookie signing secret
-echo "AUTH_SECRET=$(openssl rand -hex 32)" >> .env.local
+# Generate cookie signing secret (replaces AUTH_SECRET= in .env.local)
+sed -i "s|^AUTH_SECRET=.*|AUTH_SECRET=$(openssl rand -hex 32)|" .env.local
 
 # Start
 docker compose up -d

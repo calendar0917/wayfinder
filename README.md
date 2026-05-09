@@ -33,8 +33,8 @@ cd wayfinder
 cp .env.example .env.local
 cp data/settings.example.yaml data/settings.yaml
 
-# 生成 Cookie 签名密钥
-echo "AUTH_SECRET=$(openssl rand -hex 32)" >> .env.local
+# 生成 Cookie 签名密钥（替换 .env.local 中已有的 AUTH_SECRET= 行）
+sed -i "s|^AUTH_SECRET=.*|AUTH_SECRET=$(openssl rand -hex 32)|" .env.local
 
 # 启动
 docker compose up -d

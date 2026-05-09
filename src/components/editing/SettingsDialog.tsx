@@ -77,11 +77,15 @@ export default function SettingsDialog({
     if (locale !== (settings.locale || "en")) {
       mutations.push({ operation: "update_locale", arguments: { locale } });
     }
-    if (apiKey || apiBase || aiModel) {
-      mutations.push({
-        operation: "update_ai_settings",
-        arguments: { apiKey: apiKey || "", apiBase: apiBase || "", aiModel: aiModel || "" },
-      });
+    // Only send AI settings mutation if something actually changed
+    {
+      const aiArgs: Record<string, string> = {};
+      if (apiKey) aiArgs.apiKey = apiKey; // password field: only send if user entered a new key
+      if (apiBase !== (settings.apiBase || "")) aiArgs.apiBase = apiBase;
+      if (aiModel !== (settings.aiModel || "")) aiArgs.aiModel = aiModel;
+      if (Object.keys(aiArgs).length > 0) {
+        mutations.push({ operation: "update_ai_settings", arguments: aiArgs });
+      }
     }
     if (newPassword && newPassword.length >= 4) {
       mutations.push({ operation: "set_password", arguments: { password: newPassword } });

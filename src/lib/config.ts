@@ -102,18 +102,10 @@ export function readConfig(): AppConfig {
       config.version = CURRENT_CONFIG_VERSION;
       writeConfig(config);
     }
-    // Env vars seed empty config fields only — never override values saved in YAML.
-    // Exception: WAYFINDER_PASSWORD_HASH always takes precedence for security.
-    if (!config.settings.apiKey && process.env.WAYFINDER_API_KEY) {
-      config.settings.apiKey = process.env.WAYFINDER_API_KEY;
-    }
+    // YAML is the single source of truth for all settings (apiKey, apiBase, aiModel).
+    // WAYFINDER_PASSWORD_HASH env override is kept for Docker deployments that need
+    // to set a password before first page login.
     config.settings.passwordHash = process.env.WAYFINDER_PASSWORD_HASH || config.settings.passwordHash || DEFAULT_PASSWORD_HASH;
-    if (!config.settings.apiBase && process.env.WAYFINDER_API_BASE) {
-      config.settings.apiBase = process.env.WAYFINDER_API_BASE;
-    }
-    if (!config.settings.aiModel && process.env.WAYFINDER_AI_MODEL) {
-      config.settings.aiModel = process.env.WAYFINDER_AI_MODEL;
-    }
     return config;
   } catch {
     console.error("Config parse error, falling back to defaults");
