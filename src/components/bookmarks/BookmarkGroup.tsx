@@ -100,21 +100,21 @@ export default function BookmarkGroup({
         )}
       </div>
       {!collapsed && (
-        <Droppable droppableId={group.name} isDropDisabled={!editMode}>
+        <Droppable droppableId={group.name} isDropDisabled={!editMode || !!activeTag}>
           {(provided, snapshot) => (
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}
               className={`grid gap-2 transition-colors duration-150 ${snapshot.isDraggingOver && editMode ? "bg-[var(--accent-soft)] rounded-[var(--radius-sm)] p-1 -m-1" : ""}`}
             >
-              {filteredBookmarks.map((bookmark, index) => {
+              {filteredBookmarks.map((bookmark, i) => {
                 const originalIndex = group.bookmarks.indexOf(bookmark);
                 return (
                   <Draggable
                     key={`${group.name}-bm-${originalIndex}`}
                     draggableId={`${group.name}-bm-${originalIndex}`}
                     index={originalIndex}
-                    isDragDisabled={!editMode}
+                    isDragDisabled={!editMode || !!activeTag}
                   >
                     {(dragProvided, dragSnapshot) => (
                       <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import type { Bookmark, Group, Page, IntegrationFieldType } from "@/types/config";
 import WidgetRow from "@/components/layout/WidgetRow";
 import BookmarkGrid from "@/components/bookmarks/BookmarkGrid";
@@ -38,6 +38,16 @@ export default function Dashboard() {
 
   const [editMode, setEditMode] = useState(false);
   const [activePage, setActivePage] = useState(0);
+
+  // Clamp activePage when pages change
+  useEffect(() => {
+    const pageCount = config?.pages?.length ?? 0;
+    if (pageCount > 0 && activePage >= pageCount) {
+      setActivePage(pageCount - 1);
+    } else if (pageCount === 0) {
+      setActivePage(0);
+    }
+  }, [config?.pages?.length, activePage]);
   const [aiOpen, setAiOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);

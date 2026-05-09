@@ -11,6 +11,7 @@ export interface StatusResult {
 
 const statusCache = new Map<string, { result: StatusResult; timestamp: number }>();
 const CACHE_DURATION = 60_000;
+const CACHE_MAX_AGE = 5 * 60_000; // 5 min max — evict stale entries on read
 
 export function useStatusCheck(bookmarks: Bookmark[]) {
   const [statuses, setStatuses] = useState<Map<string, StatusResult>>(new Map());
@@ -24,6 +25,12 @@ export function useStatusCheck(bookmarks: Bookmark[]) {
     .join(",");
 
   useEffect(() => {
+    // Evict stale cache entries
+    const now = Date.now();
+    for (const [key, entry] of statusCache) {
+      if (now - entry.timestamp > CACHE_MAX_AGE) statusCache.delete(key);
+    }
+
     if (!checkableUrls) return;
     // Skip if we've already checked this exact set of URLs
     if (checkableUrls === checkedRef.current) {

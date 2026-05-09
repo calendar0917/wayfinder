@@ -139,12 +139,12 @@ export default function IntegrationDisplay({
   if (display === "badge") {
     const first = nonEmpty[0];
     const type = fieldTypes?.[first.path] || "text";
-    const text = first.label ? `${first.label}: ${String(first.value)}` : String(first.value);
     return (
       <span
         className="inline-flex items-center px-1.5 py-0.5 text-[0.6rem] font-semibold rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0"
-        title={text}
+        title={first.label ? `${first.label}: ${String(first.value)}` : String(first.value)}
       >
+        {first.label ? <span className="mr-0.5">{first.label}</span> : null}
         {renderTypedValue(first.value, type)}
       </span>
     );
@@ -173,14 +173,19 @@ export default function IntegrationDisplay({
   }
 
   // inline
-  const parts = nonEmpty.map((f) => {
-    const type = fieldTypes?.[f.path] || "text";
-    const val = type === "text" ? String(f.value) : String(f.value);
-    return f.label ? `${f.label}: ${val}` : val;
-  });
   return (
-    <span className="text-xs text-[var(--text-secondary)]">
-      {parts.join(" · ")}
+    <span className="text-xs text-[var(--text-secondary)] inline-flex items-center gap-1 flex-wrap">
+      {nonEmpty.map((f, i) => {
+        const type = fieldTypes?.[f.path] || "text";
+        return (
+          <span key={f.path} className="inline-flex items-center gap-0.5">
+            {i > 0 && <span> · </span>}
+            {f.label ? <span className="font-medium text-[var(--text)]">{f.label}</span> : null}
+            {f.label ? " " : null}
+            {renderTypedValue(f.value, type)}
+          </span>
+        );
+      })}
     </span>
   );
 }

@@ -91,7 +91,10 @@ export function useIntegration(
     }
   }, []);
 
-  const stableKey = integrations.map((i) => `${i.key}:${i.config.endpoint}:${i.config.pollInterval}`).join(",");
+  const stableKey = integrations.map((i) => {
+    const fieldsKey = i.config.fields.map((f) => `${f.path}:${f.type}`).join(";");
+    return `${i.key}:${i.config.endpoint}:${i.config.pollInterval}:${fieldsKey}`;
+  }).join(",");
 
   useEffect(() => {
     for (const timer of timersRef.current.values()) clearTimeout(timer);

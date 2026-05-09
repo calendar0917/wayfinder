@@ -36,8 +36,8 @@ export default function SettingsDialog({
   const [theme, setTheme] = useState(settings.theme);
   const [locale, setLocale] = useState(settings.locale || "en");
   const [apiKey, setApiKey] = useState("");
-  const [apiBase, setApiBase] = useState(settings.apiKey === "***" ? "" : settings.apiBase);
-  const [aiModel, setAiModel] = useState(settings.apiKey === "***" ? "" : settings.aiModel);
+  const [apiBase, setApiBase] = useState(settings.apiBase || "");
+  const [aiModel, setAiModel] = useState(settings.aiModel || "");
   const [customCss, setCustomCss] = useState(settings.customCss || "");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -51,8 +51,8 @@ export default function SettingsDialog({
     setTheme(settings.theme);
     setLocale(settings.locale || "en");
     setApiKey("");
-    setApiBase(settings.apiKey === "***" ? settings.apiBase : "");
-    setAiModel(settings.apiKey === "***" ? settings.aiModel : "");
+    setApiBase(settings.apiBase || "");
+    setAiModel(settings.aiModel || "");
     setCustomCss(settings.customCss || "");
     setNewPassword("");
     setImportFormat("json");
@@ -286,7 +286,7 @@ export default function SettingsDialog({
                 <input
                   value={apiBase}
                   onChange={(e) => setApiBase(e.target.value)}
-                  placeholder={settings.apiKey === "***" ? settings.apiBase : "https://api.openai.com/v1"}
+                  placeholder="https://api.openai.com/v1"
                   className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
                 />
               </div>
@@ -295,7 +295,7 @@ export default function SettingsDialog({
                 <input
                   value={aiModel}
                   onChange={(e) => setAiModel(e.target.value)}
-                  placeholder={settings.apiKey === "***" ? settings.aiModel : "e.g. gpt-4o, deepseek-v3"}
+                  placeholder="e.g. gpt-4o, deepseek-v3"
                   className="w-full px-2.5 py-2 bg-[var(--surface-alt)] border border-[var(--border)] rounded-[var(--radius-sm)] text-sm text-[var(--text)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)] placeholder:text-[var(--text-tertiary)]"
                 />
               </div>

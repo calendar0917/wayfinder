@@ -28,13 +28,13 @@ export default function BookmarkCard({
 }: BookmarkCardProps) {
   const hasInlineIntegration = bookmark.integration?.display === "inline" && integrationResult && !integrationResult.error;
 
+  const Tag = editMode ? "div" : "a";
+
   return (
-    <a
-      href={editMode ? undefined : bookmark.url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Tag
+      {...(editMode ? {} : { href: bookmark.url, target: "_blank", rel: "noopener noreferrer" })}
       className="group flex items-center gap-2.5 px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-sm)] transition-all duration-150 cursor-pointer text-[var(--text)] no-underline hover:bg-[var(--surface-hover)] hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-sm)]"
-      onClick={editMode ? (e) => { e.preventDefault(); onEdit?.(); } : undefined}
+      onClick={editMode ? () => onEdit?.() : undefined}
     >
       <BookmarkIcon src={bookmark.icon} name={bookmark.name} />
       {bookmark.statusCheck && statusResult && (
@@ -164,6 +164,6 @@ export default function BookmarkCard({
           )}
         </div>
       )}
-    </a>
+    </Tag>
   );
 }

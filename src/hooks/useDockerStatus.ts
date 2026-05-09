@@ -18,6 +18,7 @@ export interface DockerStatusResult {
 const DEFAULT_POLL_INTERVAL = 30_000; // 30 seconds
 const dockerCache = new Map<string, { result: DockerStatusResult; timestamp: number }>();
 const CACHE_DURATION = 10_000; // 10 seconds
+const CACHE_MAX_AGE = 5 * 60_000; // 5 min max — evict stale entries on read
 
 export function useDockerStatus(bookmarks: Bookmark[]) {
   const [statuses, setStatuses] = useState<Record<string, DockerStatusResult>>({});
@@ -31,6 +32,12 @@ export function useDockerStatus(bookmarks: Bookmark[]) {
   const containerKey = dockerBookmarks.map((b) => b.container).sort().join(",");
 
   useEffect(() => {
+    // Evict stale cache entries
+    const now = Date.now();
+    for (const [key, entry] of dockerCache) {
+      if (now - entry.timestamp > CACHE_MAX_AGE) dockerCache.delete(key);
+    }
+
     if (dockerBookmarks.length === 0) {
       setStatuses({});
       return;

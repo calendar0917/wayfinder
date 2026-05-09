@@ -120,7 +120,7 @@ export const configSchema = z.object({
 export const CURRENT_CONFIG_VERSION = 5;
 
 export const DEFAULT_CONFIG = {
-  version: 4,
+  version: 5,
   settings: {
     title: "My Dashboard",
     theme: "auto" as const,
