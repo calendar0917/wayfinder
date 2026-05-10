@@ -9,11 +9,13 @@ interface Message {
   content: string;
   toolName?: string;
   toolSuccess?: boolean;
+  toolId?: string;
 }
 
 interface ToolEvent {
   type: string;
   content?: string;
+  id?: string;
   name?: string;
   success?: boolean;
   result?: string;
@@ -138,7 +140,7 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
     abortControllerRef.current = controller;
 
     try {
-      const history = messagesRef.current.filter(m => m.role !== "system");
+      const history = messagesRef.current.filter(m => m.role === "user" || m.role === "assistant");
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -180,20 +182,30 @@ export default function AISidePanel({ open, onClose, onConfigUpdate, authenticat
               return updated;
             });
           } else if (event.type === "tool_executing") {
-            setMessages((prev) => [...prev, { role: "tool", content: "...", toolName: event.name, toolSuccess: false }]);
+            setMessages((prev) => [...prev, { role: "tool", content: "...", toolName: event.name, toolId: event.id, toolSuccess: false }]);
           } else if (event.type === "tool_result") {
             if (event.success) configModified = true;
             setMessages((prev) => {
               const updated = [...prev];
-              for (let i = updated.length - 1; i >= 0; i--) {
-                if (updated[i].role === "tool" && updated[i].content === "...") {
-                  updated[i] = {
-                    role: "tool",
+              if (event.id) {
+                const idx = updated.findIndex(m => m.toolId === event.id);
+                if (idx >= 0) {
+                  updated[idx] = {
+                    ...updated[idx],
                     content: event.result || "",
-                    toolName: updated[i].toolName,
                     toolSuccess: event.success ?? true,
                   };
-                  break;
+                }
+              } else {
+                for (let i = updated.length - 1; i >= 0; i--) {
+                  if (updated[i].role === "tool" && updated[i].content === "...") {
+                    updated[i] = {
+                      ...updated[i],
+                      content: event.result || "",
+                      toolSuccess: event.success ?? true,
+                    };
+                    break;
+                  }
                 }
               }
               return updated;

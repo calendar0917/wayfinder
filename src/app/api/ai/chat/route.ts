@@ -5,9 +5,12 @@ import { createClient, SYSTEM_PROMPT } from "@/lib/ai-provider";
 import { toolDefinitions, executeTool } from "@/lib/ai-tools";
 import { gitCommit } from "@/lib/git";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { hashPassword } from "@/lib/auth";
+import { isPrivateUrl } from "@/lib/ssrf";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 const MAX_ITERATIONS = 5;
+const MAX_HISTORY_MESSAGES = 40;
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -27,6 +30,9 @@ export async function POST(request: NextRequest) {
   try {
     const { messages, systemPrompt } = await request.json();
 
+    // Truncate old messages to keep context manageable
+    const trimmedMessages = (messages || []).slice(-MAX_HISTORY_MESSAGES);
+
     const allMessages: ChatCompletionMessageParam[] = [
       {
         role: "system",
@@ -37,10 +43,15 @@ export async function POST(request: NextRequest) {
           layout: config.settings.layout,
           customCss: config.settings.customCss ? `(${config.settings.customCss.length} chars)` : undefined,
           widgets: config.widgets.map((w, i) => ({ index: i, type: w.type, config: w.config })),
-          groups: config.groups.map(g => ({ name: g.name, bookmarkCount: g.bookmarks?.length || 0 })),
+          groups: config.groups.map(g => ({
+            name: g.name,
+            bookmarks: g.bookmarks?.map(b => b.name) || [],
+            subgroups: g.groups?.map(sg => sg.name) || [],
+          })),
+          pages: config.pages?.map(p => ({ name: p.name, groups: p.groups })),
         })}`,
       },
-      ...(messages || []),
+      ...trimmedMessages,
     ];
 
     const encoder = new TextEncoder();
@@ -57,12 +68,10 @@ export async function POST(request: NextRequest) {
             });
 
             let textContent = "";
-            const toolCallBuffers = new Map<
-              string,
-              { name: string; args: string }
+            const toolCallByIndex = new Map<
+              number,
+              { id: string; name: string; args: string }
             >();
-            // Track the most recent tool call id for streaming arg chunks
-            let lastToolCallId: string | null = null;
 
             for await (const chunk of stream) {
               const delta = chunk.choices[0]?.delta;
@@ -77,29 +86,35 @@ export async function POST(request: NextRequest) {
               if (delta?.tool_calls) {
                 for (const tc of delta.tool_calls) {
                   if (!tc.function) continue;
-                  if (tc.id) lastToolCallId = tc.id;
-                  const id = tc.id || lastToolCallId || `tc_${iteration}_${toolCallBuffers.size}`;
-                  if (tc.function.name) {
-                    toolCallBuffers.set(id, {
-                      name: tc.function.name,
+                  const idx = tc.index ?? 0;
+                  if (!toolCallByIndex.has(idx)) {
+                    toolCallByIndex.set(idx, {
+                      id: tc.id || `tc_${iteration}_${idx}`,
+                      name: tc.function.name || "",
                       args: tc.function.arguments ?? "",
                     });
-                  } else if (toolCallBuffers.has(id)) {
-                    toolCallBuffers.get(id)!.args +=
-                      tc.function.arguments ?? "";
+                  } else {
+                    const buf = toolCallByIndex.get(idx)!;
+                    if (tc.id) buf.id = tc.id;
+                    if (tc.function.name) buf.name = tc.function.name;
+                    buf.args += tc.function.arguments ?? "";
                   }
                 }
               }
-              // Clear buffers on each finish_reason to handle edge cases
               const finishReason = chunk.choices[0]?.finish_reason;
               if (
                 finishReason &&
-                toolCallBuffers.size > 0 &&
+                toolCallByIndex.size > 0 &&
                 finishReason !== "tool_calls"
               ) {
-                // Model stopped unexpectedly — flush remaining tool calls
                 break;
               }
+            }
+
+            // Convert index-based buffers to ID-based map for consistent downstream handling
+            const toolCallBuffers = new Map<string, { name: string; args: string }>();
+            for (const buf of toolCallByIndex.values()) {
+              toolCallBuffers.set(buf.id, { name: buf.name, args: buf.args });
             }
 
             // No tool calls — done
@@ -127,12 +142,20 @@ export async function POST(request: NextRequest) {
             // Execute tools server-side (atomic read-modify-write)
             const currentConfig = readConfig();
             let configModified = false;
+            const pendingResults: Array<{
+              id: string;
+              name: string;
+              aiContent: string;
+              clientResult: string;
+              clientSuccess: boolean;
+            }> = [];
 
             for (const [id, tc] of toolCallBuffers) {
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
                     type: "tool_executing",
+                    id,
                     name: tc.name,
                   })}\n\n`
                 )
@@ -146,72 +169,101 @@ export async function POST(request: NextRequest) {
               }
               const result = executeTool(tc.name, parsedArgs, currentConfig);
 
-              // Handle probe_endpoint: result contains __PROBE__ marker, fetch the real API
+              // Handle set_password: hash the sentinel value before persisting
+              if (
+                tc.name === "set_password" &&
+                result.success &&
+                result.config.settings.passwordHash.startsWith("HASH:")
+              ) {
+                const plain = result.config.settings.passwordHash.slice(5);
+                result.config.settings.passwordHash = await hashPassword(plain);
+              }
+
+              // Handle reload_config: use the fresh config from result
+              if (tc.name === "reload_config" && result.success) {
+                Object.assign(currentConfig, result.config);
+              }
+
+              // Handle probe_endpoint: fetch the real API (SSRF-protected)
               if (result.success && typeof result.result === "string" && result.result.startsWith("__PROBE__")) {
                 const probeData = JSON.parse(result.result.slice("__PROBE__".length));
-                try {
-                  const probeUrl = new URL(probeData.endpoint);
-                  if (!["http:", "https:"].includes(probeUrl.protocol)) throw new Error("Only HTTP(S) allowed");
-                  const probeHeaders: Record<string, string> = {
-                    "User-Agent": "HomepageDashboard/1.0 IntegrationProbe",
-                    "Accept": "application/json",
-                  };
-                  if (probeData.headers) {
-                    for (const [k, v] of Object.entries(probeData.headers as Record<string, string>)) {
-                      const resolved = resolveEnvVar(v);
-                      probeHeaders[k] = typeof resolved === "string" ? resolved : v;
+
+                // SSRF check — block internal network addresses
+                if (isPrivateUrl(probeData.endpoint)) {
+                  result.success = false;
+                  result.result = "Probe blocked: cannot access private/internal network addresses";
+                } else {
+                  try {
+                    const probeUrl = new URL(probeData.endpoint);
+                    if (!["http:", "https:"].includes(probeUrl.protocol)) throw new Error("Only HTTP(S) allowed");
+                    const probeHeaders: Record<string, string> = {
+                      "User-Agent": "HomepageDashboard/1.0 IntegrationProbe",
+                      "Accept": "application/json",
+                    };
+                    if (probeData.headers) {
+                      for (const [k, v] of Object.entries(probeData.headers as Record<string, string>)) {
+                        const resolved = resolveEnvVar(v);
+                        probeHeaders[k] = typeof resolved === "string" ? resolved : v;
+                      }
                     }
+                    const ac = new AbortController();
+                    const timeout = setTimeout(() => ac.abort(), 10000);
+                    const probeRes = await fetch(probeUrl.toString(), {
+                      signal: ac.signal,
+                      headers: probeHeaders,
+                    });
+                    clearTimeout(timeout);
+                    if (!probeRes.ok) {
+                      result.result = `Probe failed: HTTP ${probeRes.status}`;
+                    } else {
+                      const rawData = await probeRes.json();
+                      const jsonStr = JSON.stringify(rawData, null, 2);
+                      const truncated = jsonStr.length > 2000
+                        ? jsonStr.slice(0, 2000) + "\n... (truncated)"
+                        : jsonStr;
+                      result.result = `Probe result for ${probeData.endpoint}:\n${truncated}`;
+                    }
+                  } catch (e) {
+                    result.result = `Probe error: ${e instanceof Error ? e.message : "Request failed"}`;
                   }
-                  const controller2 = new AbortController();
-                  const timeout2 = setTimeout(() => controller2.abort(), 10000);
-                  const probeRes = await fetch(probeUrl.toString(), {
-                    signal: controller2.signal,
-                    headers: probeHeaders,
-                  });
-                  clearTimeout(timeout2);
-                  if (!probeRes.ok) {
-                    result.result = `Probe failed: HTTP ${probeRes.status}`;
-                  } else {
-                    const rawData = await probeRes.json();
-                    // Truncate to ~2000 chars to avoid bloating AI context
-                    const jsonStr = JSON.stringify(rawData, null, 2);
-                    const truncated = jsonStr.length > 2000
-                      ? jsonStr.slice(0, 2000) + "\n... (truncated)"
-                      : jsonStr;
-                    result.result = `Probe result for ${probeData.endpoint}:\n${truncated}`;
-                  }
-                } catch (e) {
-                  result.result = `Probe error: ${e instanceof Error ? e.message : "Request failed"}`;
                 }
               }
 
-              if (result.success && tc.name !== "probe_endpoint" && tc.name !== "list_templates" && tc.name !== "list_env_vars") {
+              const isReadOnly = tc.name === "probe_endpoint" || tc.name === "list_templates" || tc.name === "list_env_vars" || tc.name === "reload_config";
+              if (result.success && !isReadOnly) {
                 configModified = true;
               }
 
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "tool_result",
-                    success: result.success,
-                    result: result.result,
-                  })}\n\n`
-                )
-              );
+              // Prepare results: full JSON for AI context, sanitized for client display
+              let clientResult: string = typeof result.result === "string" ? result.result : String(result.result);
+              if (tc.name === "probe_endpoint" && result.success) {
+                clientResult = "API structure discovered — use configure_integration to set up fields";
+              }
 
-              allMessages.push({
-                role: "tool",
-                tool_call_id: id,
-                content: JSON.stringify(result),
+              pendingResults.push({
+                id,
+                name: tc.name,
+                aiContent: JSON.stringify(result),
+                clientResult,
+                clientSuccess: result.success,
               });
             }
 
+            // Validate and persist config before confirming tool results
             if (configModified) {
               const validation = configSchema.safeParse(currentConfig);
               if (!validation.success) {
                 const issues = validation.error.issues.map(
                   (i) => `${i.path.join(".")}: ${i.message}`
                 );
+                // Rollback tool results — mark all config-modifying tools as failed
+                for (const pr of pendingResults) {
+                  if (pr.clientSuccess) {
+                    pr.clientSuccess = false;
+                    pr.clientResult = "Config validation failed — changes rolled back";
+                    pr.aiContent = JSON.stringify({ success: false, result: "Config validation failed — changes rolled back" });
+                  }
+                }
                 controller.enqueue(
                   encoder.encode(
                     `data: ${JSON.stringify({
@@ -231,6 +283,25 @@ export async function POST(request: NextRequest) {
                   )
                 );
               }
+            }
+
+            // Send tool results to client and AI (after validation to report correct status)
+            for (const pr of pendingResults) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "tool_result",
+                    id: pr.id,
+                    success: pr.clientSuccess,
+                    result: pr.clientResult,
+                  })}\n\n`
+                )
+              );
+              allMessages.push({
+                role: "tool",
+                tool_call_id: pr.id,
+                content: pr.aiContent,
+              });
             }
           }
 

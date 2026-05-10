@@ -297,3 +297,303 @@ describe("remove_integration", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("rename_group", () => {
+  it("renames a group and updates page references", () => {
+    const config = makeConfig();
+    config.pages = [{ name: "Home", groups: ["Test Group"] }];
+    const result = executeTool("rename_group", { oldName: "Test Group", newName: "Renamed" }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.groups[0].name).toBe("Renamed");
+    expect(result.config.pages![0].groups).toContain("Renamed");
+    expect(result.config.pages![0].groups).not.toContain("Test Group");
+  });
+
+  it("fails for non-existent group", () => {
+    const result = executeTool("rename_group", { oldName: "Missing", newName: "New" }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("reorder_bookmark", () => {
+  it("reorders a bookmark within its group", () => {
+    const config = makeConfig();
+    const result = executeTool("reorder_bookmark", { group: "Test Group", fromIndex: 0, toIndex: 1 }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.groups[0].bookmarks[0].name).toBe("Google");
+    expect(result.config.groups[0].bookmarks[1].name).toBe("GitHub");
+  });
+
+  it("fails for invalid indices", () => {
+    const result = executeTool("reorder_bookmark", { group: "Test Group", fromIndex: -1, toIndex: 0 }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+
+  it("fails for non-existent group", () => {
+    const result = executeTool("reorder_bookmark", { group: "Missing", fromIndex: 0, toIndex: 1 }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("move_bookmark with position", () => {
+  it("moves bookmark to a specific position", () => {
+    const config = makeConfig();
+    // Add a third bookmark
+    executeTool("add_bookmark", { name: "Third", url: "https://third.com" }, config);
+    const result = executeTool("move_bookmark", { name: "GitHub", fromGroup: "Test Group", toGroup: "Test Group", position: 2 }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.groups[0].bookmarks[2].name).toBe("GitHub");
+  });
+});
+
+describe("set_password", () => {
+  it("sets password with HASH: sentinel", () => {
+    const config = makeConfig();
+    const result = executeTool("set_password", { password: "mypassword" }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.settings.passwordHash).toBe("HASH:mypassword");
+  });
+
+  it("rejects short passwords", () => {
+    const result = executeTool("set_password", { password: "abc" }, makeConfig());
+    expect(result.success).toBe(false);
+    expect(result.result).toContain("4 characters");
+  });
+
+  it("rejects empty password", () => {
+    const result = executeTool("set_password", { password: "" }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("update_ai_settings", () => {
+  it("updates AI model only", () => {
+    const config = makeConfig();
+    const result = executeTool("update_ai_settings", { aiModel: "gpt-4o-mini" }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.settings.aiModel).toBe("gpt-4o-mini");
+  });
+
+  it("returns no changes when aiModel not provided", () => {
+    const result = executeTool("update_ai_settings", {}, makeConfig());
+    expect(result.success).toBe(false);
+  });
+
+  it("ignores apiKey and apiBase parameters", () => {
+    const config = makeConfig();
+    const original = config.settings.apiKey;
+    const result = executeTool("update_ai_settings", { aiModel: "gpt-4o-mini", apiKey: "sk-hacked", apiBase: "http://evil.com" }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.settings.apiKey).toBe(original);
+    expect(result.config.settings.apiBase).not.toBe("http://evil.com");
+  });
+});
+
+describe("update_title", () => {
+  it("updates the title", () => {
+    const result = executeTool("update_title", { title: "New Title" }, makeConfig());
+    expect(result.success).toBe(true);
+    expect(result.config.settings.title).toBe("New Title");
+  });
+
+  it("rejects empty title", () => {
+    const result = executeTool("update_title", { title: "  " }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("update_search", () => {
+  it("updates search engine", () => {
+    const result = executeTool("update_search", { engine: "google" }, makeConfig());
+    expect(result.success).toBe(true);
+    expect(result.config.settings.search.engine).toBe("google");
+  });
+
+  it("rejects invalid engine", () => {
+    const result = executeTool("update_search", { engine: "yandex" }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("update_custom_css", () => {
+  it("updates custom CSS", () => {
+    const result = executeTool("update_custom_css", { css: ":root { --accent: red; }" }, makeConfig());
+    expect(result.success).toBe(true);
+    expect(result.config.settings.customCss).toBe(":root { --accent: red; }");
+  });
+
+  it("strips script tags from CSS", () => {
+    const result = executeTool("update_custom_css", { css: "<script>alert(1)</script>body { color: red; }" }, makeConfig());
+    expect(result.success).toBe(true);
+    expect(result.config.settings.customCss).not.toContain("<script>");
+  });
+
+  it("rejects empty CSS", () => {
+    const result = executeTool("update_custom_css", { css: "" }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("add_page", () => {
+  it("creates a new page", () => {
+    const config = makeConfig();
+    const result = executeTool("add_page", { name: "Page 2", groups: ["Test Group"] }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.pages).toHaveLength(1);
+    expect(result.config.pages![0].name).toBe("Page 2");
+  });
+
+  it("warns about unknown groups", () => {
+    const result = executeTool("add_page", { name: "Page 2", groups: ["NonExistent"] }, makeConfig());
+    expect(result.success).toBe(true);
+    expect(result.result).toContain("Warning");
+    expect(result.result).toContain("NonExistent");
+  });
+
+  it("rejects duplicate page names", () => {
+    const config = makeConfig();
+    executeTool("add_page", { name: "Alpha" }, config);
+    const result = executeTool("add_page", { name: "Alpha" }, config);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects empty name", () => {
+    const result = executeTool("add_page", { name: "" }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("remove_page", () => {
+  it("removes a page", () => {
+    const config = makeConfig();
+    executeTool("add_page", { name: "Page 1" }, config);
+    const result = executeTool("remove_page", { name: "Page 1" }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.pages).toBeUndefined();
+  });
+
+  it("fails for non-existent page", () => {
+    const config = makeConfig();
+    const result = executeTool("remove_page", { name: "Missing" }, config);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("update_page", () => {
+  it("updates page name and groups", () => {
+    const config = makeConfig();
+    executeTool("add_page", { name: "Old Name", groups: ["Test Group"] }, config);
+    const result = executeTool("update_page", { name: "Old Name", newName: "New Name", groups: ["Test Group"] }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.pages![0].name).toBe("New Name");
+  });
+
+  it("fails for non-existent page", () => {
+    const result = executeTool("update_page", { name: "Missing", newName: "New" }, makeConfig());
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("add_group with pages", () => {
+  it("auto-adds new group to first page", () => {
+    const config = makeConfig();
+    executeTool("add_page", { name: "Home", groups: ["Test Group"] }, config);
+    const result = executeTool("add_group", { name: "New Group" }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.pages![0].groups).toContain("New Group");
+    expect(result.result).toContain("Home");
+  });
+
+  it("does not auto-add nested group to page", () => {
+    const config = makeConfig();
+    executeTool("add_page", { name: "Home", groups: ["Test Group"] }, config);
+    const result = executeTool("add_group", { name: "Nested", parentGroup: "Test Group" }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.pages![0].groups).not.toContain("Nested");
+  });
+});
+
+describe("list_templates", () => {
+  it("returns templates", () => {
+    const result = executeTool("list_templates", {}, makeConfig());
+    expect(result.success).toBe(true);
+    expect(result.result).toContain("pihole");
+  });
+
+  it("filters templates by keyword", () => {
+    const result = executeTool("list_templates", { filter: "port" }, makeConfig());
+    expect(result.success).toBe(true);
+    expect(result.result).toContain("portainer");
+  });
+});
+
+describe("probe_endpoint", () => {
+  it("rejects private network addresses", () => {
+    const result = executeTool("probe_endpoint", { endpoint: "http://127.0.0.1:8080/api" }, makeConfig());
+    expect(result.success).toBe(false);
+    expect(result.result).toContain("private");
+  });
+
+  it("rejects non-HTTP protocols", () => {
+    const result = executeTool("probe_endpoint", { endpoint: "ftp://example.com/api" }, makeConfig());
+    expect(result.success).toBe(false);
+    expect(result.result).toContain("HTTP");
+  });
+
+  it("rejects invalid URLs", () => {
+    const result = executeTool("probe_endpoint", { endpoint: "not-a-url" }, makeConfig());
+    expect(result.success).toBe(false);
+    expect(result.result).toContain("Invalid");
+  });
+
+  it("returns probe marker for valid public URLs", () => {
+    const result = executeTool("probe_endpoint", { endpoint: "https://api.example.com/status" }, makeConfig());
+    expect(result.success).toBe(true);
+    expect(result.result).toContain("__PROBE__");
+  });
+});
+
+describe("configure_integration with template", () => {
+  it("configures from template", () => {
+    const config = makeConfig();
+    const result = executeTool("configure_integration", {
+      name: "GitHub",
+      template: "pihole",
+      HOST: "192.168.1.10",
+    }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.groups[0].bookmarks[0].integration).toBeDefined();
+    expect(result.config.groups[0].bookmarks[0].integration!.endpoint).toContain("192.168.1.10");
+  });
+
+  it("fails for unknown template", () => {
+    const result = executeTool("configure_integration", {
+      name: "GitHub",
+      template: "nonexistent",
+    }, makeConfig());
+    expect(result.success).toBe(false);
+    expect(result.result).toContain("not found");
+  });
+
+  it("respects display arg in non-template mode", () => {
+    const config = makeConfig();
+    const result = executeTool("configure_integration", {
+      name: "GitHub",
+      endpoint: "http://localhost/api",
+      fields: [{ path: "status" }],
+      display: "card",
+    }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.groups[0].bookmarks[0].integration!.display).toBe("card");
+  });
+});
+
+describe("remove_group page cleanup", () => {
+  it("removes group references from pages", () => {
+    const config = makeConfig();
+    config.pages = [{ name: "Home", groups: ["Test Group"] }];
+    const result = executeTool("remove_group", { name: "Test Group" }, config);
+    expect(result.success).toBe(true);
+    expect(result.config.pages![0].groups).toHaveLength(0);
+  });
+});

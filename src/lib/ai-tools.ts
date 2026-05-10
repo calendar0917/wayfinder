@@ -1,4 +1,5 @@
 import { readConfig, resolveEnvVar } from "./config";
+import { isPrivateUrl } from "./ssrf";
 import type { AppConfig, Bookmark, Group, Page, IntegrationFieldType } from "@/types/config";
 import { INTEGRATION_TEMPLATES } from "./integration-templates";
 
@@ -267,12 +268,10 @@ export const toolDefinitions = [
     type: "function" as const,
     function: {
       name: "update_ai_settings",
-      description: "Update AI provider settings (apiKey, apiBase, aiModel)",
+      description: "Update AI model setting. API key and base URL must be changed in the Settings UI for security.",
       parameters: {
         type: "object",
         properties: {
-          apiKey: { type: "string", description: "New API key (omit to keep current)" },
-          apiBase: { type: "string", description: "API base URL" },
           aiModel: { type: "string", description: "Model name" },
         },
       },
@@ -741,10 +740,18 @@ export function executeTool(
         pg.groups.push(newGroup);
       } else {
         config.groups.push(newGroup);
+        // Auto-add to first page if pages are configured
+        if (config.pages && config.pages.length > 0) {
+          config.pages[0].groups.push(args.name as string);
+        }
+      }
+      let msg = `Group '${args.name}' created`;
+      if (config.pages && config.pages.length > 0 && !parent) {
+        msg += ` and added to page '${config.pages[0].name}'`;
       }
       return {
         success: true,
-        result: `Group '${args.name}' created`,
+        result: msg,
         config,
       };
     }
@@ -913,18 +920,17 @@ export function executeTool(
     }
 
     case "update_ai_settings": {
-      if (typeof args.apiKey === "string") {
-        config.settings.apiKey = args.apiKey;
-      }
-      if (typeof args.apiBase === "string") {
-        config.settings.apiBase = args.apiBase;
-      }
       if (typeof args.aiModel === "string") {
         config.settings.aiModel = args.aiModel;
+        return {
+          success: true,
+          result: `AI model updated to '${config.settings.aiModel}'`,
+          config,
+        };
       }
       return {
-        success: true,
-        result: "AI settings updated",
+        success: false,
+        result: "No changes made — only aiModel can be changed via AI",
         config,
       };
     }
@@ -1120,9 +1126,15 @@ export function executeTool(
         return { success: false, result: "Endpoint URL is required", config };
       }
       try {
-        new URL(probeUrl);
+        const parsed = new URL(probeUrl);
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          return { success: false, result: "Only HTTP(S) endpoints allowed", config };
+        }
       } catch {
         return { success: false, result: "Invalid endpoint URL", config };
+      }
+      if (isPrivateUrl(probeUrl)) {
+        return { success: false, result: "Cannot probe private/internal network addresses", config };
       }
       // Return a marker so the chat route knows to proxy this request
       return {
@@ -1137,13 +1149,9 @@ export function executeTool(
       const allVars = Object.keys(process.env).sort();
       const filtered = filter
         ? allVars.filter((v) => v.toLowerCase().includes(filter))
-        : allVars.filter((v) => {
-            // Default: show likely relevant vars (keys, hosts, tokens, URLs)
-            const lower = v.toLowerCase();
-            return lower.includes("api") || lower.includes("key") || lower.includes("token") ||
-              lower.includes("host") || lower.includes("url") || lower.includes("secret") ||
-              lower.includes("sid") || lower.includes("cookie");
-          });
+        : allVars.filter((v) =>
+            /[_](api_?key|apikey|token|host|port|secret|sid|key)$/i.test(v)
+          );
       return {
         success: true,
         result: filtered.length
@@ -1226,9 +1234,15 @@ export function executeTool(
       if (config.pages.some((p) => p.name === pageName)) {
         return { success: false, result: `Page '${pageName}' already exists`, config };
       }
-      const page: Page = { name: pageName, groups: (args.groups as string[]) || [] };
+      const groups = (args.groups as string[]) || [];
+      const unknown = groups.filter(g => !findGroup(config.groups, g));
+      const page: Page = { name: pageName, groups };
       config.pages.push(page);
-      return { success: true, result: `Page '${pageName}' created`, config };
+      let msg = `Page '${pageName}' created`;
+      if (unknown.length > 0) {
+        msg += `. Warning: groups not found: ${unknown.join(", ")}`;
+      }
+      return { success: true, result: msg, config };
     }
 
     case "remove_page": {
