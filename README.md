@@ -40,7 +40,7 @@ sed -i "s|^AUTH_SECRET=.*|AUTH_SECRET=$(openssl rand -hex 32)|" .env.local
 docker compose up -d
 ```
 
-打开 `http://localhost:3000`，通过设置对话框或 AI 对话设置密码。
+打开 `http://localhost:3000`，默认密码 `admin`，首次登录后请立刻修改。
 
 ### 使用 GHCR 镜像部署
 
@@ -59,7 +59,7 @@ docker run -d \
 启用 AI 助手需要配置 OpenAI 兼容的 API：
 
 ```bash
-# 在 .env.local 中添加
+# 在 data/settings.yaml 中添加
 WAYFINDER_API_KEY=sk-your-api-key
 WAYFINDER_API_BASE=https://api.openai.com/v1    # 或任意兼容端点
 WAYFINDER_AI_MODEL=gpt-4o                         # 或你偏好的模型
@@ -148,3 +148,7 @@ npm run build        # 生产构建
 ## 许可证
 
 [GPL-3.0](LICENSE)
+
+## 友情链接
+
+[Linuxdo 中文论坛](https://linux.do/latest)
