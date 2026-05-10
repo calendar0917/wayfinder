@@ -17,7 +17,6 @@ export function useStatusCheck(bookmarks: Bookmark[]) {
   const [statuses, setStatuses] = useState<Map<string, StatusResult>>(new Map());
   const checkedRef = useRef<string>("");
 
-  // Derive a stable key from the bookmark URLs that need checking
   const checkableUrls = bookmarks
     .filter((b) => b.statusCheck)
     .map((b) => b.url)
@@ -25,14 +24,12 @@ export function useStatusCheck(bookmarks: Bookmark[]) {
     .join(",");
 
   useEffect(() => {
-    // Evict stale cache entries
     const now = Date.now();
     for (const [key, entry] of statusCache) {
       if (now - entry.timestamp > CACHE_MAX_AGE) statusCache.delete(key);
     }
 
     if (!checkableUrls) return;
-    // Skip if we've already checked this exact set of URLs
     if (checkableUrls === checkedRef.current) {
       const toCheck = bookmarks.filter((b) => b.statusCheck);
       if (toCheck.length > 0) {
@@ -55,7 +52,6 @@ export function useStatusCheck(bookmarks: Bookmark[]) {
     );
 
     if (uncached.length === 0) {
-      // All cached — populate from cache
       const cached = new Map<string, StatusResult>();
       for (const b of toCheck) {
         const entry = statusCache.get(b.url);
@@ -74,13 +70,7 @@ export function useStatusCheck(bookmarks: Bookmark[]) {
       return next;
     });
 
-    // Send single batch request
-    const urls = uncached.map((b) => b.url);
-    fetch("/api/status-check/batch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls }),
-    })
+    fetch("/api/status-check/public")
       .then((res) => res.json())
       .then((data: Record<string, StatusResult>) => {
         const now = Date.now();

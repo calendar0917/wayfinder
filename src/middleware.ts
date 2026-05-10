@@ -37,7 +37,11 @@ async function verifySignedToken(token: string): Promise<boolean> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only protect write/AI endpoints — the dashboard is publicly viewable
+  // Public read-only endpoints — service status visible without login
+  const publicPaths = ["/api/status-check/public", "/api/docker/status", "/api/integration/proxy"];
+  if (publicPaths.some((p) => pathname === p)) return NextResponse.next();
+
+  // Protect write/AI endpoints — the dashboard is publicly viewable
   const protectedPaths = [
     "/api/ai/",
     "/api/config/mutate",
@@ -45,8 +49,6 @@ export async function middleware(request: NextRequest) {
     "/api/config/import",
     "/api/git",
     "/api/status-check",
-    "/api/docker/status",
-    "/api/integration/",
   ];
   const isProtectedPath = protectedPaths.some((p) => pathname.startsWith(p));
   // Also protect /api/config for non-GET methods (PUT)
